@@ -55,7 +55,7 @@ const {
     <!-- 1. List image picker -->
     <div class="relative w-full" data-testid="list-image-picker">
       <!-- Image banner: ~16:10 aspect ratio, rounded-xl -->
-      <div class="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-[#201F27]">
+      <div class="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-[#222C34]">
         <!-- Image or placeholder -->
         <div
           v-if="props.shoppingList.imageUrl"
@@ -70,7 +70,7 @@ const {
         </div>
         <div
           v-else
-          class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#6554E7] to-[#4a485d] text-white font-semibold text-4xl"
+          class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#4E9A8B] to-[#3B4853] text-white font-semibold text-4xl"
           :aria-label="t('shoppingLists.thumbnailAria', { name: props.shoppingList.name })"
         >
           {{ initialsOf(props.shoppingList.name) }}
@@ -80,7 +80,7 @@ const {
         <label
           for="list-image-upload"
           data-testid="list-image-edit"
-          class="absolute bottom-4 right-4 flex w-10 h-10 items-center justify-center rounded-full bg-[#6554E7] text-[#F0EBFF] shadow-lg transition hover:bg-[#5a44cf] cursor-pointer"
+          class="absolute bottom-4 right-4 flex w-10 h-10 items-center justify-center rounded-full bg-[#4E9A8B] text-[#FFFFFF] shadow-lg transition hover:bg-[#3F8577] cursor-pointer"
           :aria-label="t('shoppingListSettings.changeImage')"
           :class="{ 'opacity-60 pointer-events-none': isUploading }"
         >
@@ -92,7 +92,7 @@ const {
           v-if="isUploading"
           class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl"
         >
-          <p class="text-sm text-[#C8C4D7]">{{ t('shoppingListSettings.imageUploading') }}</p>
+          <p class="text-sm text-[#D3DAE0]">{{ t('shoppingListSettings.imageUploading') }}</p>
         </div>
       </div>
 
@@ -114,14 +114,14 @@ const {
 
     <!-- 2. SHOPPING_LIST NAME -->
     <div class="flex flex-col gap-2">
-      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#C8C4D7]">
+      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#D3DAE0]">
         {{ t('shoppingListSettings.shoppingListNameLabel') }}
       </label>
       <input
         v-model="shoppingListName"
         type="text"
         data-testid="list-name-input"
-        class="w-full rounded-xl border border-transparent bg-[#201F27] px-4 py-3 text-base text-[#E5E0ED] outline-none transition placeholder:text-[#C8C4D7] focus:border-[#6554E7]/40"
+        class="w-full rounded-xl border border-transparent bg-[#222C34] px-4 py-3 text-base text-[#FFFFFF] outline-none transition placeholder:text-[#D3DAE0] focus:border-[#4E9A8B]/40"
         style="height: 48px"
       />
       <p v-if="nameError" class="text-sm text-[#FFB4AB]">{{ nameError }}</p>
@@ -129,14 +129,14 @@ const {
 
     <!-- 3. ADD MEMBERS -->
     <div class="flex flex-col gap-2">
-      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#C8C4D7]">
+      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#D3DAE0]">
         {{ t('shoppingListSettings.addMembersLabel') }}
       </label>
       <form class="flex gap-2" @submit.prevent="addMember">
         <div class="relative flex-1">
           <!-- person-plus icon prefix -->
           <svg
-            class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#C8C4D7]"
+            class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#D3DAE0]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -153,13 +153,13 @@ const {
             v-model="memberEmail"
             type="email"
             :placeholder="t('shoppingListSettings.emailPlaceholder')"
-            class="w-full rounded-xl border border-transparent bg-[#201F27] py-3 pl-10 pr-4 text-base text-[#E5E0ED] outline-none transition placeholder:text-[#C8C4D7] focus:border-[#6554E7]/40"
+            class="w-full rounded-xl border border-transparent bg-[#222C34] py-3 pl-10 pr-4 text-base text-[#FFFFFF] outline-none transition placeholder:text-[#D3DAE0] focus:border-[#4E9A8B]/40"
             style="height: 48px"
           />
         </div>
         <button
           type="submit"
-          class="shrink-0 rounded-xl bg-[#201F27] px-4 text-sm font-medium uppercase tracking-wide text-[#E5E0ED] transition hover:bg-[#2a2933] disabled:opacity-60"
+          class="shrink-0 rounded-xl bg-[#222C34] px-4 text-sm font-medium uppercase tracking-wide text-[#FFFFFF] transition hover:bg-[#3B4853] disabled:opacity-60"
           style="width: 80px"
           :disabled="isSubmittingMember"
         >
@@ -171,7 +171,7 @@ const {
 
     <!-- 4. MEMBERS -->
     <div class="flex flex-col gap-2">
-      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#C8C4D7]">
+      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#D3DAE0]">
         {{ t('shoppingListSettings.membersLabel', { count: props.shoppingList.members.length }) }}
       </label>
       <ul class="flex flex-col gap-1">
@@ -182,7 +182,7 @@ const {
         >
           <!-- Avatar -->
           <div
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6554E7] to-[#4a485d] text-sm font-semibold text-white"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4E9A8B] to-[#3B4853] text-sm font-semibold text-white"
           >
             <img
               v-if="member.imageUrl"
@@ -195,10 +195,10 @@ const {
           </div>
           <!-- Name + email -->
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-[#E5E0ED]">
+            <p class="truncate text-sm font-medium text-[#FFFFFF]">
               {{ isCurrentUser(member.id) ? t('shoppingListSettings.youLabel') : member.displayName }}
             </p>
-            <p class="truncate text-xs text-[#C8C4D7]">
+            <p class="truncate text-xs text-[#D3DAE0]">
               {{ member.email }}
             </p>
           </div>
@@ -206,7 +206,7 @@ const {
           <button
             v-if="props.shoppingList.members.length > 1 && !isCurrentUser(member.id)"
             type="button"
-            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#C8C4D7] transition hover:bg-white/10 hover:text-[#E5E0ED] disabled:opacity-60"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#D3DAE0] transition hover:bg-white/10 hover:text-[#FFFFFF] disabled:opacity-60"
             :aria-label="t('shoppingListSettings.removeMemberAria')"
             :disabled="removingMemberId === member.id"
             @click="removeMember(member)"
@@ -229,7 +229,7 @@ const {
       data-testid="pending-invitations-section"
       class="flex flex-col gap-2"
     >
-      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#C8C4D7]">
+      <label class="font-display text-xs font-medium uppercase tracking-[0.05em] text-[#D3DAE0]">
         {{ t('shoppingListSettings.pendingInvitationsLabel') }}
       </label>
       <ul class="flex flex-col gap-1">
@@ -240,14 +240,14 @@ const {
         >
           <!-- Email only, no avatar -->
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm text-[#E5E0ED]">
+            <p class="truncate text-sm text-[#FFFFFF]">
               {{ invitation.email }}
             </p>
           </div>
           <!-- Cancel button -->
           <button
             type="button"
-            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#C8C4D7] transition hover:bg-white/10 hover:text-[#E5E0ED] disabled:opacity-60"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#D3DAE0] transition hover:bg-white/10 hover:text-[#FFFFFF] disabled:opacity-60"
             :aria-label="t('shoppingListSettings.cancelInvitationAria')"
             :disabled="cancellingInvitationId === invitation.id"
             @click="cancelInvitation(invitation)"
@@ -267,7 +267,7 @@ const {
     <!-- 6. Save button -->
     <button
       type="button"
-      class="w-full rounded-xl bg-[#6554E7] py-3.5 text-base font-medium text-[#F0EBFF] transition hover:bg-[#5a44cf] disabled:cursor-not-allowed disabled:opacity-60"
+      class="w-full rounded-xl bg-[#4E9A8B] py-3.5 text-base font-medium text-[#FFFFFF] transition hover:bg-[#3F8577] disabled:cursor-not-allowed disabled:opacity-60"
       style="height: 52px"
       :disabled="isSubmittingName || shoppingListName.trim() === props.shoppingList.name"
       @click="saveName"

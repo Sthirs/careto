@@ -57,7 +57,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="flex flex-1 min-h-0 flex-col sm:gap-8 gap-4 overflow-y-auto bg-[#13121B] px-5 pt-8 pb-8 mx-auto w-full max-w-5xl"
+    class="flex flex-1 min-h-0 flex-col sm:gap-8 gap-4 overflow-y-auto bg-[#2E3A44] px-5 pt-8 pb-8 mx-auto w-full max-w-5xl"
   >
     <!-- Topbar: back arrow -->
     <Teleport to="#topbar-leading">
@@ -82,7 +82,7 @@ onBeforeUnmount(() => {
       <div class="relative" data-testid="account-avatar-wrapper">
         <div
           data-testid="account-avatar"
-          class="h-[112px] w-[112px] rounded-full overflow-hidden border-2 border-[#C6BFFF]/20 bg-[#2A2932] shadow-lg"
+          class="h-[112px] w-[112px] rounded-full overflow-hidden border-2 border-[#8ED9C9]/20 bg-[#3B4853] shadow-lg"
         >
           <img
             v-if="authStore.user?.imageUrl"
@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
           />
           <div
             v-else
-            class="flex h-full w-full items-center justify-center text-6xl font-bold text-[#E4E1ED]"
+            class="flex h-full w-full items-center justify-center text-6xl font-bold text-[#FFFFFF]"
           >
             {{ userInitial }}
           </div>
@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
         <label
           for="avatar-upload"
           data-testid="account-avatar-edit"
-          class="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#6654E7] text-[#F0EBFF] shadow-lg transition hover:bg-[#5a47d4] cursor-pointer"
+          class="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#4E9A8B] text-[#FFFFFF] shadow-lg transition hover:bg-[#3F8577] cursor-pointer"
           :aria-label="t('account.changePhoto')"
         >
           <img
@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
 
       <h2
         data-testid="account-name-heading"
-        class="text-center font-bold text-[#E4E1ED] tracking-[-0.025em] sm:text-[48px] sm:leading-[56px] text-3xl"
+        class="text-center font-bold text-[#FFFFFF] tracking-[-0.025em] sm:text-[48px] sm:leading-[56px] text-3xl"
       >
         {{ name.trim() || '—' }}
       </h2>
@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
       <p
         v-if="isUploading"
         data-testid="account-uploading"
-        class="text-sm text-[#C6BFFF] text-center"
+        class="text-sm text-[#8ED9C9] text-center"
       >
         {{ t('account.photoUploading') }}
       </p>
@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
     <!-- Account Details -->
     <section data-testid="account-details" class="flex flex-col">
       <p
-        class="mb-6 text-xs font-medium uppercase tracking-[0.05em] text-[#C6BFFF]"
+        class="mb-6 text-xs font-medium uppercase tracking-[0.05em] text-[#8ED9C9]"
       >
         {{ t('account.accountDetails') }}
       </p>
@@ -165,7 +165,7 @@ onBeforeUnmount(() => {
         <div class="flex flex-col">
           <label
             for="account-name"
-            class="mb-2 block text-xs uppercase tracking-[0.05em] text-[#C8C4D7]"
+            class="mb-2 block text-xs uppercase tracking-[0.05em] text-[#D3DAE0]"
             >{{ t('account.fullName') }}</label
           >
           <input
@@ -174,28 +174,28 @@ onBeforeUnmount(() => {
             type="text"
             maxlength="100"
             :placeholder="t('account.fullNamePlaceholder')"
-            class="w-full rounded-md border border-[#474554]/30 bg-[rgba(42,41,50,0.5)] px-4 py-3 text-[#E4E1ED] placeholder:text-[#C8C4D7]/50 focus:border-[#6554E7] focus:outline-none"
+            class="w-full rounded-md border border-[#5A6772]/30 bg-[rgba(59,72,83,0.6)] px-4 py-3 text-[#FFFFFF] placeholder:text-[#D3DAE0]/50 focus:border-[#4E9A8B] focus:outline-none"
           />
         </div>
 
         <div class="flex flex-col">
           <label
             for="account-email"
-            class="mb-2 block text-xs uppercase tracking-[0.05em] text-[#C8C4D7]"
+            class="mb-2 block text-xs uppercase tracking-[0.05em] text-[#D3DAE0]"
             >{{ t('account.emailAddress') }}</label
           >
           <input
             id="account-email"
             :value="email"
             disabled
-            class="w-full cursor-not-allowed rounded-md border border-[#474554]/30 bg-[rgba(42,41,50,0.5)] px-4 py-3 text-[#E4E1ED] opacity-60"
+            class="w-full cursor-not-allowed rounded-md border border-[#5A6772]/30 bg-[rgba(59,72,83,0.6)] px-4 py-3 text-[#FFFFFF] opacity-60"
           />
         </div>
 
         <div class="flex flex-col">
           <label
             for="account-language"
-            class="mb-2 block text-xs uppercase tracking-[0.05em] text-[#C8C4D7]"
+            class="mb-2 block text-xs uppercase tracking-[0.05em] text-[#D3DAE0]"
             >{{ t('common.language') }}</label
           >
           <div class="relative">
@@ -203,14 +203,14 @@ onBeforeUnmount(() => {
               id="account-language"
               v-model="selectedLanguage"
               data-testid="account-language"
-              class="w-full appearance-none rounded-md border border-[#474554]/30 bg-[rgba(42,41,50,0.5)] py-3 pl-4 pr-10 text-[#E4E1ED] focus:border-[#6554E7] focus:outline-none"
+              class="w-full appearance-none rounded-md border border-[#5A6772]/30 bg-[rgba(59,72,83,0.6)] py-3 pl-4 pr-10 text-[#FFFFFF] focus:border-[#4E9A8B] focus:outline-none"
             >
               <option value="en">English</option>
               <option value="it">Italiano</option>
             </select>
             <svg
               viewBox="0 0 20 20"
-              class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 fill-current text-[#C8C4D7]"
+              class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 fill-current text-[#D3DAE0]"
               aria-hidden="true"
             >
               <path
@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
         type="button"
         data-testid="account-save"
         :disabled="!canSave"
-        class="mt-6 w-full rounded-lg bg-[#6654E7] px-4 py-3 font-medium text-[#F0EBFF] shadow-inner transition enabled:hover:bg-[#5a47d4] disabled:cursor-not-allowed disabled:opacity-50"
+        class="mt-6 w-full rounded-lg bg-[#4E9A8B] px-4 py-3 font-medium text-[#FFFFFF] shadow-inner transition enabled:hover:bg-[#3F8577] disabled:cursor-not-allowed disabled:opacity-50"
         @click="save"
       >
         {{ isSaving ? t('common.saving') : t('account.saveChanges') }}
@@ -268,7 +268,7 @@ onBeforeUnmount(() => {
     <!-- App Version -->
     <p
       data-testid="account-version"
-      class="mt-8 text-center text-xs text-[#C8C4D7]/70"
+      class="mt-8 text-center text-xs text-[#D3DAE0]/70"
     >
       {{ t('account.versionLabel') }} {{ appVersion }}
     </p>

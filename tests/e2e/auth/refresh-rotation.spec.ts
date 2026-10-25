@@ -30,7 +30,7 @@ test.describe('refresh token rotation', () => {
     const page = await pageForUser(user.email, user.password);
 
     await page.goto('/lists');
-    await expect(page.getByRole('heading', { name: 'Careto' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My lists', level: 1 })).toBeVisible();
 
     const cookieBefore = await refreshCookieValue(page.context());
     expect(cookieBefore, 'login must have set the refresh cookie').toBeTruthy();
@@ -42,7 +42,7 @@ test.describe('refresh token rotation', () => {
 
     // Still signed in — NOT bounced to /login.
     await expect(page).toHaveURL(/\/lists$/);
-    await expect(page.getByRole('heading', { name: 'Careto' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My lists', level: 1 })).toBeVisible();
 
     // A new access token was obtained…
     const restoredToken = await page.evaluate(
@@ -62,7 +62,7 @@ test.describe('refresh token rotation', () => {
     const page = await pageForUser(user.email, user.password);
 
     await page.goto('/lists');
-    await expect(page.getByRole('heading', { name: 'Careto' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My lists', level: 1 })).toBeVisible();
 
     // A token requireAuth cannot verify — the same 401 an expired one produces.
     await page.evaluate((key) => {

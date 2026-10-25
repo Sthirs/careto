@@ -62,7 +62,7 @@ describe('DateTimePicker', () => {
     // Calendar icon + chevron-down icon (the sheet close-X is outside the trigger).
     expect(svgs).toHaveLength(2);
     for (const svg of svgs) {
-      expect(svg.classes().join(' ')).toContain('text-[#C8C4D7]');
+      expect(svg.classes().join(' ')).toContain('text-[#D3DAE0]');
     }
 
     expect(trigger.html()).toContain('Oct 15');

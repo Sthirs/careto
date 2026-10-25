@@ -58,7 +58,7 @@ test.describe('account language selection (EN → IT via Save)', () => {
 
     // Lists screen renders localized copy.
     await page.goto('/lists');
-    await expect(page.getByRole('button', { name: '+ Crea lista' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nuova lista' })).toBeVisible();
 
     // Log out (Sign Out lives on the account screen), log back in —
     // the saved preference survives the session.

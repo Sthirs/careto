@@ -41,8 +41,8 @@ watch(isOpen, (open) => {
 });
 
 const selectAttribute = computed(() => ({
-  highlight: { color: '#6554E7', fillMode: 'solid' as const },
-  content: { color: '#F0EBFF', fontWeight: 700 },
+  highlight: { color: '#4E9A8B', fillMode: 'solid' as const },
+  content: { color: '#FFFFFF', fontWeight: 700 },
 }));
 
 function formatDate(ymd: string): string {
@@ -80,41 +80,41 @@ function cancel(): void {
     @click="openSheet"
   >
     <span
-      class="font-display text-[10px] font-medium uppercase tracking-[0.05em] text-[#C8C4D7]"
+      class="font-display text-[10px] font-medium uppercase tracking-[0.05em] text-[#D3DAE0]"
       >{{ t('dateTimePicker.dateLabel') }}</span
     >
     <div
-      class="rounded-xl px-4 py-3 bg-[#201F27] border border-[rgba(71,69,84,0.3)] flex items-center justify-between gap-3"
+      class="rounded-xl px-4 py-3 bg-[#222C34] border border-[rgba(90,103,114,0.5)] flex items-center justify-between gap-3"
     >
       <span class="flex items-center gap-3 min-w-0">
         <svg
           viewBox="0 0 16 17"
-          class="h-4 w-4 shrink-0 fill-current text-[#C8C4D7]"
+          class="h-4 w-4 shrink-0 fill-current text-[#D3DAE0]"
           aria-hidden="true"
           focusable="false"
         >
           <path
             d="M4 1.5v2M12 1.5v2M1.5 6.5h13M3 3.5h10A1.5 1.5 0 0 1 14.5 5v9A1.5 1.5 0 0 1 13 15.5H3A1.5 1.5 0 0 1 1.5 14V5A1.5 1.5 0 0 1 3 3.5z"
-            stroke="#C8C4D7"
+            stroke="#D3DAE0"
             stroke-width="1.2"
             fill="none"
             stroke-linecap="round"
             stroke-linejoin="round"
           />
         </svg>
-        <span class="text-sm text-[#E5E0ED] truncate">{{
+        <span class="text-sm text-[#FFFFFF] truncate">{{
           formatDate(modelValue)
         }}</span>
       </span>
       <svg
         viewBox="0 0 12 8"
-        class="h-3 w-3 shrink-0 fill-current text-[#C8C4D7]"
+        class="h-3 w-3 shrink-0 fill-current text-[#D3DAE0]"
         aria-hidden="true"
         focusable="false"
       >
         <path
           d="M1 1l5 5 5-5"
-          stroke="#C8C4D7"
+          stroke="#D3DAE0"
           stroke-width="1.5"
           fill="none"
           stroke-linecap="round"
@@ -128,17 +128,17 @@ function cancel(): void {
     :open="isOpen"
     :center-on-desktop="false"
     :label="t('dateTimePicker.selectDateAria')"
-    panel-class="w-full max-w-[390px] bg-[#1C1B23] rounded-t-[24px] border-t border-[rgba(255,255,255,0.1)] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
+    panel-class="w-full max-w-[390px] bg-[#222C34] rounded-t-[24px] border-t border-[rgba(255,255,255,0.1)] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
     @close="cancel"
   >
     <!-- Outer Header -->
     <SheetHeader :close-label="t('common.close')" @close="cancel">
       <div class="flex flex-col">
         <span
-          class="font-display text-[10px] font-medium uppercase tracking-[0.05em] text-[#C6BFFF]"
+          class="font-display text-[10px] font-medium uppercase tracking-[0.05em] text-[#8ED9C9]"
           >{{ t('dateTimePicker.selectDateHeading') }}</span
         >
-        <span class="text-2xl font-bold text-[#E5E0ED]">{{
+        <span class="text-2xl font-bold text-[#FFFFFF]">{{
           formatDate(draft)
         }}</span>
       </div>
@@ -152,7 +152,7 @@ function cancel(): void {
         v-model.string="draft"
         mode="date"
         is-dark
-        :color="'#6554E7'"
+        :color="'#4E9A8B'"
         :first-day-of-week="1"
         :masks="{ title: 'MMMM YYYY', modelValue: 'YYYY-MM-DD' }"
         :select-attribute="selectAttribute"
@@ -166,14 +166,14 @@ function cancel(): void {
     >
       <button
         type="button"
-        class="rounded-full px-6 py-3 text-[12px] font-medium tracking-[0.05em] text-[#C8C4D7]"
+        class="rounded-full px-6 py-3 text-[12px] font-medium tracking-[0.05em] text-[#D3DAE0]"
         @click="cancel"
       >
         {{ t('dateTimePicker.cancel') }}
       </button>
       <button
         type="button"
-        class="rounded-full px-6 py-3 text-[12px] font-medium tracking-[0.05em] text-[#F0EBFF] bg-[#6554E7]"
+        class="rounded-full px-6 py-3 text-[12px] font-medium tracking-[0.05em] text-[#FFFFFF] bg-[#4E9A8B]"
         @click="apply"
       >
         {{ t('dateTimePicker.apply') }}
@@ -188,9 +188,9 @@ function cancel(): void {
   background: transparent !important;
 }
 
-/* Weekday cells: single uppercase letters, Geist-like */
+/* Weekday cells: single uppercase letters, compact */
 :deep(.vc-weekday) {
-  color: #c8c4d7;
+  color: #D3DAE0;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.05em;
@@ -198,7 +198,7 @@ function cancel(): void {
 
 /* Day cell content */
 :deep(.vc-day-content) {
-  color: #e5e0ed;
+  color: #FFFFFF;
   font-size: 16px;
   line-height: 24px;
   border-radius: 9999px;
@@ -211,12 +211,12 @@ function cancel(): void {
 
 /* Trailing/leading month days (dimmed) */
 :deep(.vc-day.is-not-in-month .vc-day-content) {
-  color: #474554;
+  color: #5A6772;
 }
 
 /* Selected day highlight */
 :deep(.vc-highlight) {
-  background: #6554e7 !important;
+  background: #4E9A8B !important;
   border-radius: 9999px !important;
   width: 100%;
   height: 100%;
@@ -224,12 +224,12 @@ function cancel(): void {
 
 /* Nav arrows */
 :deep(.vc-nav-arrow) {
-  color: #c8c4d7;
+  color: #D3DAE0;
 }
 
 /* Month title */
 :deep(.vc-title) {
-  color: #e5e0ed;
+  color: #FFFFFF;
   font-size: 16px;
   font-weight: 600;
 }

@@ -65,12 +65,12 @@ onBeforeUnmount(() => {
     :shopping-list-id="shoppingListId"
   />
 
-  <main class="flex flex-col flex-1 min-h-0 text-[#E5E0ED]">
+  <main class="flex flex-col flex-1 min-h-0 text-[#FFFFFF]">
     <div class="mx-auto w-full max-w-5xl flex flex-col flex-1 min-h-0">
       <!-- Loading -->
       <div
         v-if="isLoading"
-        class="flex-1 flex items-center justify-center text-[#C8C4D7]"
+        class="flex-1 flex items-center justify-center text-[#D3DAE0]"
       >
         {{ t('shoppingListDetail.loading') }}
       </div>
@@ -79,7 +79,7 @@ onBeforeUnmount(() => {
       <div
         v-else-if="shoppingList"
         data-testid="list-empty"
-        class="flex-1 flex items-center justify-center px-4 text-[#C8C4D7]"
+        class="flex-1 flex items-center justify-center px-4 text-[#D3DAE0]"
       >
         {{ t('shoppingListDetail.empty') }}
       </div>

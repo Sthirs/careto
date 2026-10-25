@@ -44,21 +44,24 @@ export const en = {
   },
 
   login: {
-    welcome: 'Welcome back',
-    subtitle: 'Your shopping list, filled in for you',
+    subtitle: 'The grocery list that fills itself',
     email: 'Email',
+    emailPlaceholder: 'Your email',
     password: 'Password',
+    passwordPlaceholder: 'Your password',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
-    logIn: 'Log In',
-    loggingIn: 'Logging in...',
+    logIn: 'Sign in',
+    loggingIn: 'Signing in...',
+    // Divider between the local form and the OAuth button.
+    or: 'or',
     loginFailed: 'We could not log you in with those credentials.',
     signInUnavailable: 'Sign-in is not available — contact an administrator.',
   },
 
   shoppingLists: {
-    // Topbar title for the lists overview screen.
-    title: 'Careto',
+    // Page heading of the lists overview screen.
+    title: 'My lists',
     loading: 'Loading your lists...',
     loadFailed: 'We could not load your lists.',
     invitations: 'Invitations',
@@ -69,11 +72,11 @@ export const en = {
     acceptError: 'Could not accept the invitation. Please try again.',
     declineError: 'Could not decline the invitation. Please try again.',
     noShoppingLists: 'No lists yet.',
-    createShoppingList: '+ Create list',
+    createShoppingList: 'New list',
     createShoppingListLabel: 'List name',
-    createShoppingListPlaceholder: 'List name',
-    create: 'Create',
-    creating: 'Creating...',
+    createShoppingListPlaceholder: 'e.g. Weekend at the lake',
+    create: 'Save',
+    creating: 'Saving...',
     enterShoppingListName: 'Enter a list name.',
     createFailed: 'We could not create your list.',
     // aria-labels (chrome): rendered when no list image is set, the prefix

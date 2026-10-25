@@ -65,7 +65,7 @@ describe('LoginView', () => {
     const wrapper = await mountView();
     expect(wrapper.find('input#email').exists()).toBe(true);
     expect(wrapper.find('input#password').exists()).toBe(true);
-    expect(wrapper.text()).toContain(i18n.global.t('login.welcome'));
+    expect(wrapper.text()).toContain(i18n.global.t('login.subtitle'));
   });
 
   it('submit success: calls auth.login then pushes the default /lists redirect target', async () => {

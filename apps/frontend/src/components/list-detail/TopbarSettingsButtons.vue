@@ -15,7 +15,7 @@ const router = useRouter();
     <button
       v-if="shoppingList"
       type="button"
-      class="hidden rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-[#E5E0ED] transition hover:border-white/20 hover:bg-white/5 sm:inline-flex"
+      class="hidden rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-[#FFFFFF] transition hover:border-white/20 hover:bg-white/5 sm:inline-flex"
       @click="
         router.push({
           name: 'list-settings',
@@ -29,7 +29,7 @@ const router = useRouter();
     <button
       v-if="shoppingList"
       type="button"
-      class="flex h-9 w-9 items-center justify-center rounded-full text-[#C8C4D7] transition hover:bg-white/10 hover:text-[#E5E0ED] sm:hidden"
+      class="flex h-9 w-9 items-center justify-center rounded-full text-[#D3DAE0] transition hover:bg-white/10 hover:text-[#FFFFFF] sm:hidden"
       :aria-label="t('shoppingListDetail.toggleSettings')"
       @click="
         router.push({

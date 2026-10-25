@@ -1,9 +1,9 @@
 import { expect, type Page } from '@playwright/test';
 
 export class ShoppingListsPage {
-  private createShoppingListButton = this.page.getByRole('button', { name: '+ Create list' });
+  private createShoppingListButton = this.page.getByRole('button', { name: 'New list' });
   private shoppingListNameInput = this.page.getByRole('textbox', { name: 'List name' });
-  private createButton = this.page.getByRole('button', { name: 'Create', exact: true });
+  private createButton = this.page.getByRole('button', { name: 'Save', exact: true });
   private cancelButton = this.page.getByRole('button', { name: 'Cancel' });
 
   constructor(private page: Page) {}
@@ -51,7 +51,7 @@ export class ShoppingListsPage {
   }
 
   async expectCreateShoppingListButton() {
-    await expect(this.page.getByRole('button', { name: '+ Create list' })).toBeVisible();
+    await expect(this.page.getByRole('button', { name: 'New list' })).toBeVisible();
   }
 
   // -- Invitation selectors (ShoppingListsView.vue:142-202) --

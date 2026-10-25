@@ -35,7 +35,8 @@ export const router = createRouter({
       path: '/lists',
       name: 'shoppingLists',
       component: ShoppingListsView,
-      meta: { requiresAuth: true, title: 'Lists' },
+      // The view renders its own "My lists" header in place of AppTopbar.
+      meta: { requiresAuth: true, title: 'Lists', hideTopbar: true },
     },
     {
       path: '/lists/:id',

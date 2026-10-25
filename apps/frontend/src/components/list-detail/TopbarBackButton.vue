@@ -10,7 +10,7 @@ const { t } = useI18n();
   <Teleport to="#topbar-leading">
     <button
       type="button"
-      class="flex h-9 w-9 items-center justify-center rounded-full text-[#C8C4D7] transition hover:bg-white/10 hover:text-[#E5E0ED]"
+      class="flex h-9 w-9 items-center justify-center rounded-full text-[#D3DAE0] transition hover:bg-white/10 hover:text-[#FFFFFF]"
       :aria-label="t('shoppingListDetail.backToShoppingLists')"
       @click="$emit('back')"
     >

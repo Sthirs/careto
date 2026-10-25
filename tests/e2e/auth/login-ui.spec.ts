@@ -17,17 +17,16 @@ test.describe('Login UI — visual fidelity', () => {
     }
 
     // Header
-    await expect(page.locator('img[src="/careto.svg"]')).toBeVisible();
+    await expect(page.locator('img[src="/careto-trolley.svg"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Careto', level: 1 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Welcome back', level: 2 })).toBeVisible();
-    await expect(page.getByText('Your shopping list, filled in for you')).toBeVisible();
+    await expect(page.getByText('The grocery list that fills itself')).toBeVisible();
 
     // Prefilled demo credentials (real <label> → getByLabel works)
     await expect(page.getByLabel('Email')).toHaveValue('demo@careto.local');
     await expect(page.getByLabel('Password', { exact: true })).toHaveValue('password123');
 
-    // Log in button
-    await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
+    // Sign in button
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 
     // Password visibility toggle (functional): starts hidden, click reveals
     const toggle = page.getByRole('button', { name: 'Show password' });
