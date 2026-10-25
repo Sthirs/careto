@@ -1,0 +1,27 @@
+// Icon paths (24x24 line style) for the `household` catalog section.
+
+export const householdIcons: Readonly<Record<string, string>> = {
+  'garbage-bags': 'M6 9l-1 10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2L18 9 M6 9c2 0 4-1 6-1s4 1 6 1 M12 8l-2-4 M12 8l2-4',
+  'dishwashing-liquid': 'M10 2h4v4h-4z M9 6h6l1 3v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9z M8 13h8',
+  'aluminum-foil': 'M3 9h18v8H3z M3 9l2-3h16l-2 3 M21 6v8l-2 3 M11 10v6 M8 13h6 M9.2 11.2l3.6 3.6 M12.8 11.2l-3.6 3.6',
+  'baby-food': 'M7 7h9v3H7z M6.5 10h10v9a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2z M20 3v9 M19 3v3a1 1 0 0 0 2 0V3 M11.5 17.5s-3.5-2-3.5-4.5a1.75 1.75 0 0 1 3.5-.5 1.75 1.75 0 0 1 3.5.5c0 2.5-3.5 4.5-3.5 4.5z',
+  'parchment-paper': 'M4 5h16 M4 5a2 2 0 0 0 0 4h16a2 2 0 0 0 0-4 M5 9v11h14V9 M8 13h8 M8 16h6',
+  'bathroom-cleaner': 'M8 10h8v11H8z M9 10V7h5v3 M10 7V4h5.5l1.5 1.5 M15.5 4V2.5 M9.3 17a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0z M12.6 15a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0z M10.9 13a0.6 0.6 0 1 0 1.2 0a0.6 0.6 0 1 0 -1.2 0z',
+  batteries: 'M5 6h4a1 1 0 0 1 1 1v13a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-13a1 1 0 0 1 1 -1z M6 4h2v2 M15 6h4a1 1 0 0 1 1 1v13a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-13a1 1 0 0 1 1 -1z M16 4h2v2 M7 11v4 M5 13h4 M15 13h4',
+  flowers: 'M12 21V11 M12 11c-3 0-5-2-5-6l2.5 2L12 3l2.5 4L17 5c0 4-2 6-5 6z M12 17c-2-2-4-2-6-1 2 2 4 2 6 1z M12 15c2-2 4-2 6-1-2 2-4 2-6 1z',
+  'plastic-wrap': 'M3 9h18v8H3z M3 9l2-3h16l-2 3 M21 6v8l-2 3 M7 13c1.3-1 2.7 1 4 0s2.7-1 4 0',
+  gift: 'M3 9h18v4H3z M5 13h14v8H5z M12 9v12 M12 9c-2-4-6-4-6-2s4 2 6 2z M12 9c2-4 6-4 6-2s-4 2-6 2z',
+  'wrapping-paper': 'M4 18L17 5 M7 21L20 8 M4 18l3 3 M17 5l3 3 M8 15l3 3 M12 11l3 3',
+  'dishwasher-salt': 'M5 3h14v18H5z M5 7h14 M9.5 13l2.5-1.3 2.5 1.3v3l-2.5 1.3-2.5-1.3z M9.5 13l2.5 1.3 2.5-1.3 M12 14.3v3',
+  'dishwasher-tabs': 'M7 7h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z M5 12h5 M14 12h5',
+  'glass-cleaner': 'M8 10h8v11H8z M9 10V7h5v3 M10 7V4h5.5l1.5 1.5 M15.5 4V2.5 M12 12.5v6 M9 15.5h6 M10.2 13.7l3.6 3.6 M13.8 13.7l-3.6 3.6',
+  'light-bulb': 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c1 1 1 2 1 3.5h6c0-1.5 0-2.5 1-3.5A6 6 0 0 0 12 3z',
+  'paper-towels': 'M7 4.5a5 2 0 1 0 10 0a5 2 0 1 0 -10 0z M10.6 4.5a1.4 0.6 0 1 0 2.8 0a1.4 0.6 0 1 0 -2.8 0z M7 4.5v15c0 1.1 2.2 2 5 2s5-.9 5-2v-15 M7 10c0 1.1 2.2 2 5 2s5-.9 5-2 M7 15c0 1.1 2.2 2 5 2s5-.9 5-2',
+  candles: 'M8 10h8v11H8z M12 10V7 M12 7c-1-1-1-3 0-4 1 1 1 3 0 4z',
+  'cleaning-supplies': 'M5 9h14l-2 12H7z M5 9c0-4 3-6 7-6s7 2 7 6 M9 13h6',
+  sponge: 'M6 7h12a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M4 11h16 M8 14h.01 M12 14.5h.01 M16 14h.01',
+  napkins: 'M4 4h16v16H4z M4 4l16 16 M12 4v8h8',
+  'toilet-cleaner': 'M8 9h8v12H8z M10 9V6l6-2.5v2L12 7v2 M8 14h8',
+  'laundry-detergent': 'M5 7h11v14H5z M8 7V4h4v3 M16 9h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2 M7.8 15.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0z M11.1 13.5a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0z M9.4 11.5a0.6 0.6 0 1 0 1.2 0a0.6 0.6 0 1 0 -1.2 0z',
+  'fabric-softener': 'M5 7h11v14H5z M8 7V4h4v3 M16 9h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2 M6.5 12.5c1.3-1 2.7 1 4 0s2.7-1 4 0 M6.5 15.5c1.3-1 2.7 1 4 0s2.7-1 4 0',
+};

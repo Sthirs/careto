@@ -11,9 +11,9 @@ test('lists overview matches UI design: thumbnails and avatars', async ({ authen
   const headingCount = await page.getByRole('heading', { level: 2 }).count();
   expect(headingCount).toBeGreaterThanOrEqual(2);
 
-  // 3. Mercà de Rialto — gradient thumbnail (no img), 2 members (demo + alice)
+  // 3. Marcà de Rialto — gradient thumbnail (no img), 2 members (demo + alice)
   const rialtoCard = page.locator('li').filter({
-    has: page.getByRole('heading', { name: 'Mercà de Rialto', exact: true, level: 2 }),
+    has: page.getByRole('heading', { name: 'Marcà de Rialto', exact: true, level: 2 }),
   });
   await expect(rialtoCard).toBeVisible();
   await expect(rialtoCard.locator('div[aria-label*="thumbnail"]')).toBeVisible();

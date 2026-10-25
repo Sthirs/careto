@@ -28,6 +28,64 @@ export class ShoppingListDetailPage {
     await this.page.waitForURL(/\/lists$/, { timeout: 10000 });
   }
 
+  // ItemSearchField.vue: the "I need…" field in the bottom dock.
+  searchField() {
+    return this.page.getByRole('textbox', { name: 'Search or add an item' });
+  }
+
+  async search(query: string): Promise<void> {
+    await this.searchField().fill(query);
+  }
+
+  // ItemSearchResults.vue: each result is a button named by its action.
+  searchResult(name: string) {
+    return this.page.getByRole('list', { name: 'Matching items' }).getByRole('button', { name });
+  }
+
+  async addFromSearch(query: string, itemName: string): Promise<void> {
+    await this.search(query);
+    await this.searchResult(`Add ${itemName}`).click();
+  }
+
+  async addCustomItem(name: string): Promise<void> {
+    await this.search(name);
+    await this.searchResult(`Add ${name} as a custom item`).click();
+  }
+
+  toBuyList() {
+    return this.page.getByRole('list', { name: 'To buy' });
+  }
+
+  lastUsedList() {
+    return this.page.getByRole('list', { name: 'Last used' });
+  }
+
+  /** Names of the tiles in a list, top to bottom. */
+  async tileNames(list: ReturnType<ShoppingListDetailPage['toBuyList']>): Promise<string[]> {
+    return (await list.getByTestId('list-item').allInnerTexts()).map((text) => text.trim());
+  }
+
+  async markBought(itemName: string): Promise<void> {
+    await this.toBuyList().getByRole('button', { name: `Mark ${itemName} as bought` }).click();
+  }
+
+  async addBack(itemName: string): Promise<void> {
+    await this.lastUsedList().getByRole('button', { name: `Add ${itemName} back to the list` }).click();
+  }
+
+  /** ListItemTile.vue: a left swipe past the threshold removes the item. */
+  async swipeRemove(itemName: string): Promise<void> {
+    const tile = this.toBuyList().getByTestId('list-item').filter({ hasText: itemName });
+    const box = await tile.boundingBox();
+    if (!box) throw new Error(`swipeRemove: no tile for ${itemName}`);
+    const y = box.y + box.height / 2;
+    await this.page.mouse.move(box.x + box.width - 10, y);
+    await this.page.mouse.down();
+    await this.page.mouse.move(box.x + box.width / 2, y, { steps: 5 });
+    await this.page.mouse.move(box.x + 10, y, { steps: 5 });
+    await this.page.mouse.up();
+  }
+
   async getShoppingListId(): Promise<string> {
     // Use the URL's pathname, not a naive split('/').pop() — a trailing
     // ?overlay=<id> query (useRoutedOverlay, ADR-0019) would otherwise be

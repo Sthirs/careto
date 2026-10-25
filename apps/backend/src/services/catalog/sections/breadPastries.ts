@@ -1,0 +1,25 @@
+// Default items of the `bread-pastries` section, as stable keys (ADR-0014).
+
+export const breadPastries: readonly string[] = [
+  'bagels',
+  'baguette',
+  'puff-pastry',
+  'bread',
+  'sliced-bread',
+  'buns',
+  'donuts',
+  'croissant',
+  'crispbread',
+  'muffins',
+  'pancakes-mix',
+  'pie',
+  'pizza-dough',
+  'scones',
+  'rolls',
+  'toast',
+  'tortillas',
+  'waffles',
+  'pumpkin-pie',
+  'dinner-rolls',
+  'piadina',
+];

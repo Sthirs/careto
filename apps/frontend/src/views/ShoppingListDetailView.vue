@@ -4,14 +4,26 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import AccountAvatarLink from '@/components/AccountAvatarLink.vue';
+import ItemSearchField from '@/components/list-items/ItemSearchField.vue';
+import ItemSearchResults from '@/components/list-items/ItemSearchResults.vue';
+import LastUsedSection from '@/components/list-items/LastUsedSection.vue';
+import ListItemTile from '@/components/list-items/ListItemTile.vue';
 import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
 import ScreenHeader from '@/components/ScreenHeader.vue';
+import { useItemCatalog } from '@/composables/useItemCatalog';
+import { useItemSearch, type SearchResult } from '@/composables/useItemSearch';
+import { useListItems } from '@/composables/useListItems';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
+import { iconForItem } from '@/lib/itemIcons';
+import { sortLastUsed, sortToBuy } from '@/lib/listItemOrder';
 
+import type { ListItem } from '@/types/listItem';
 import type { ShoppingListDetail } from '@/types/shoppingList';
 
-const { t } = useI18n();
+const REMOVE_HINT_ID = 'list-item-remove-hint';
+
+const { t, locale } = useI18n();
 
 const route = useRoute();
 const router = useRouter();
@@ -19,19 +31,45 @@ const router = useRouter();
 const shoppingList = ref<ShoppingListDetail | null>(null);
 const isLoading = ref(true);
 const errorMessage = ref('');
+const actionError = ref('');
+const announcement = ref('');
+const query = ref('');
+const lastUsedExpanded = ref(true);
 // Seeded from history state so the header has a title before the fetch lands.
 const title = ref<string>(history.state?.shoppingListName ? String(history.state.shoppingListName) : '');
 
 const shoppingListId = computed(() => route.params.id as string);
+
+const { catalog, loadCatalog } = useItemCatalog();
+const { items, customItems, sectionOrder, loadItems, addItem, setStatus, removeItem } =
+  useListItems(() => shoppingListId.value);
+const results = useItemSearch(query, catalog, customItems, items);
+
+const labelOf = (item: ListItem) =>
+  item.customItem ? item.customItem.name : t(`catalog.items.${item.catalogItemKey}`);
+
+const tileOf = (item: ListItem) => ({
+  id: item.id,
+  label: labelOf(item),
+  icon: iconForItem(item.catalogItemKey, item.sectionKey),
+});
+
+const toBuy = computed(() =>
+  sortToBuy(items.value, sectionOrder.value, labelOf, locale.value).map(tileOf),
+);
+const lastUsed = computed(() => sortLastUsed(items.value).map(tileOf));
+const isSearching = computed(() => query.value.trim().length > 0);
 
 const loadShoppingList = async () => {
   isLoading.value = true;
   errorMessage.value = '';
 
   try {
-    const { data } = await api.get<{ shoppingList: ShoppingListDetail }>(
-      `/lists/${shoppingListId.value}`,
-    );
+    const [{ data }] = await Promise.all([
+      api.get<{ shoppingList: ShoppingListDetail }>(`/lists/${shoppingListId.value}`),
+      loadItems(),
+      loadCatalog(),
+    ]);
     shoppingList.value = data.shoppingList;
     title.value = data.shoppingList.name;
   } catch {
@@ -39,6 +77,39 @@ const loadShoppingList = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const runAction = async (action: () => Promise<unknown>) => {
+  actionError.value = '';
+  try {
+    await action();
+  } catch {
+    actionError.value = t('shoppingListDetail.actionFailed');
+  }
+};
+
+const itemById = (id: string) => items.value.find((item) => item.id === id);
+
+const markBought = (id: string) => {
+  const item = itemById(id);
+  if (item) void runAction(() => setStatus(item, 'bought'));
+};
+
+const addBack = (id: string) => {
+  const item = itemById(id);
+  if (item) void runAction(() => setStatus(item, 'to_buy'));
+};
+
+const remove = (id: string) => {
+  const item = itemById(id);
+  if (!item) return;
+  announcement.value = t('shoppingListDetail.removedAnnouncement', { name: labelOf(item) });
+  void runAction(() => removeItem(item));
+};
+
+const pick = (result: SearchResult) => {
+  query.value = '';
+  void runAction(() => addItem(result.input));
 };
 
 // Every list section goes back to My lists (ADR-0022).
@@ -59,27 +130,71 @@ onMounted(loadShoppingList);
       <template #trailing><AccountAvatarLink /></template>
     </ScreenHeader>
 
-    <main class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-[140px]">
+    <main class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pt-3 pb-[220px]">
       <p v-if="isLoading" class="flex flex-1 items-center justify-center text-text-secondary">
         {{ t('shoppingListDetail.loading') }}
       </p>
 
-      <!-- Items land here. -->
-      <p
-        v-else-if="shoppingList"
-        data-testid="list-empty"
-        class="flex flex-1 items-center justify-center text-text-secondary"
-      >
-        {{ t('shoppingListDetail.empty') }}
-      </p>
+      <template v-else-if="shoppingList">
+        <p v-if="actionError" role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
+          {{ actionError }}
+        </p>
+        <p
+          v-if="items.length === 0"
+          data-testid="list-empty"
+          class="flex flex-1 items-center justify-center text-text-secondary"
+        >
+          {{ t('shoppingListDetail.empty') }}
+        </p>
+        <ul
+          v-if="toBuy.length > 0"
+          :aria-label="t('shoppingListDetail.toBuyAria')"
+          data-testid="to-buy"
+          class="m-0 flex list-none flex-col gap-1 overflow-hidden rounded-xl p-0"
+        >
+          <ListItemTile
+            v-for="tile in toBuy"
+            :key="tile.id"
+            tone="to-buy"
+            :label="tile.label"
+            :icon="tile.icon"
+            :action-label="t('shoppingListDetail.markBoughtAria', { name: tile.label })"
+            :described-by="REMOVE_HINT_ID"
+            @activate="markBought(tile.id)"
+            @remove="remove(tile.id)"
+          />
+        </ul>
+        <LastUsedSection
+          v-if="lastUsed.length > 0"
+          v-model:expanded="lastUsedExpanded"
+          :items="lastUsed"
+          :described-by="REMOVE_HINT_ID"
+          @add-back="addBack"
+          @remove="remove"
+        />
+      </template>
 
       <div v-if="errorMessage" class="flex flex-1 items-center justify-center px-2">
         <p role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
           {{ errorMessage }}
         </p>
       </div>
+      <p :id="REMOVE_HINT_ID" class="sr-only">{{ t('shoppingListDetail.removeHint') }}</p>
+      <p class="sr-only" aria-live="polite">{{ announcement }}</p>
     </main>
 
-    <ListSectionsDock :shopping-list-id="shoppingListId" :shopping-list-name="title || undefined" current="list-detail" />
+    <button
+      v-if="isSearching"
+      type="button"
+      tabindex="-1"
+      class="absolute inset-0 z-[9] bg-black/55"
+      :aria-label="t('shoppingListDetail.closeSearch')"
+      @click="query = ''"
+    ></button>
+
+    <ListSectionsDock :shopping-list-id="shoppingListId" :shopping-list-name="title || undefined" current="list-detail">
+      <ItemSearchResults v-if="isSearching" :results="results" @pick="pick" />
+      <ItemSearchField v-if="shoppingList" v-model="query" />
+    </ListSectionsDock>
   </div>
 </template>

@@ -36,9 +36,19 @@ async function routerLinkStub() {
 }
 
 // Mock the api module
+// The view also loads its items and the shared catalog; both are empty here
+// (the item behaviour is covered by ShoppingListDetailItems.test.ts).
+function defaultGet(url: string) {
+  if (url === '/catalog') return Promise.resolve({ data: { sections: [], items: [] } });
+  if (url.endsWith('/items')) {
+    return Promise.resolve({ data: { sectionOrder: [], items: [], customItems: [] } });
+  }
+  return Promise.resolve({ data: { shoppingList: getDefaultShoppingList() } });
+}
+
 vi.mock('@/lib/api', () => ({
   api: {
-    get: vi.fn().mockResolvedValue({ data: { shoppingList: getDefaultShoppingList() } }),
+    get: vi.fn(defaultGet),
     post: vi.fn().mockResolvedValue({ data: {} }),
     patch: vi.fn().mockResolvedValue({ data: {} }),
     delete: vi.fn().mockResolvedValue({ data: {} }),
@@ -110,8 +120,8 @@ const mountShoppingListDetailView = () =>
     },
   });
 
-// Queue the list payload returned by api.get for the next mount (loadShoppingList is
-// called once on mount, so a single mockResolvedValueOnce is consumed).
+// Queue the list payload returned by api.get for the next mount: the list
+// request is the first api.get call of loadShoppingList.
 const mockShoppingListResponse = (shoppingList: Record<string, unknown>) => {
   (
     api.get as unknown as { mockResolvedValueOnce: (value: unknown) => unknown }
@@ -124,6 +134,7 @@ describe('ShoppingListDetailView', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    vi.mocked(api.get).mockImplementation(defaultGet as typeof api.get);
     afterEachCallbacks.length = 0;
     mockHistoryBack = null;
     // Mock history.state to avoid null reference in happy-dom
@@ -139,6 +150,7 @@ describe('ShoppingListDetailView', () => {
     await flushPromises();
 
     expect(api.get).toHaveBeenCalledWith('/lists/list-1');
+    expect(api.get).toHaveBeenCalledWith('/lists/list-1/items');
     expect(wrapper.find('h1').text()).toBe('Test List');
     expect(wrapper.find('[data-testid="list-empty"]').exists()).toBe(true);
   });

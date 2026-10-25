@@ -3,6 +3,11 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 
 import { env } from '../config/env';
+import { CatalogItem } from '../entities/CatalogItem';
+import { CatalogSection } from '../entities/CatalogSection';
+import { ListCustomItem } from '../entities/ListCustomItem';
+import { ListItem } from '../entities/ListItem';
+import { ListSectionOrder } from '../entities/ListSectionOrder';
 import { ShoppingList } from '../entities/ShoppingList';
 import { Invitation } from '../entities/Invitation';
 import { PushSubscription } from '../entities/PushSubscription';
@@ -22,6 +27,11 @@ export const AppDataSource = new DataSource({
     ShoppingList,
     Invitation,
     PushSubscription,
+    CatalogSection,
+    CatalogItem,
+    ListSectionOrder,
+    ListCustomItem,
+    ListItem,
   ],
 });
 
