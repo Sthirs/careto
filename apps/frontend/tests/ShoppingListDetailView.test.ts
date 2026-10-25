@@ -1,0 +1,204 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mount, flushPromises } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import { ref } from 'vue';
+
+import ShoppingListDetailView from '@/views/ShoppingListDetailView.vue';
+import { i18n } from '@/i18n';
+import { api } from '@/lib/api';
+
+// The default list payload used by the mocked api.get. Declared as a hoisted
+// function (not a const) so the vi.mock factory can call it even though vi.mock
+// calls are hoisted above module-level const bindings.
+function getDefaultShoppingList() {
+  return {
+    id: 'list-1',
+    name: 'Test List',
+    imageUrl: null,
+    memberCount: 3,
+    members: [
+      { id: 'user-1', displayName: 'Alice', email: 'alice@test.com' },
+      { id: 'user-2', displayName: 'Bob', email: 'bob@test.com' },
+      { id: 'user-3', displayName: 'Charlie', email: 'charlie@test.com' },
+    ],
+    pendingInvitations: [],
+  };
+}
+
+// Mock the api module
+vi.mock('@/lib/api', () => ({
+  api: {
+    get: vi.fn().mockResolvedValue({ data: { shoppingList: getDefaultShoppingList() } }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    patch: vi.fn().mockResolvedValue({ data: {} }),
+    delete: vi.fn().mockResolvedValue({ data: {} }),
+  },
+}));
+
+// Mock vue-router. `back`/`replace`/`options.history.state`/`afterEach` exist
+// only because goBackTo (lib/backNavigation.ts, ADR-0019) is NOT mocked here
+// and runs for real against these mocks. `afterEachCallbacks` simulates
+// vue-router invoking every registered afterEach guard once a navigation
+// settles, which is what clears goBackTo's module-level `popPending` latch —
+// without it, the latch set by one test's back-arrow click would leak into
+// the next. `mockHistoryBack` is reassigned per-test to control which branch
+// goBackTo takes.
+const mockRouterPush = vi.fn();
+const afterEachCallbacks: Array<() => void> = [];
+const mockRouterBack = vi.fn(() => {
+  queueMicrotask(() => afterEachCallbacks.forEach((cb) => cb()));
+});
+const mockRouterReplace = vi.fn(() => {
+  queueMicrotask(() => afterEachCallbacks.forEach((cb) => cb()));
+  return Promise.resolve(undefined);
+});
+let mockHistoryBack: string | null = null;
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    params: { id: 'list-1' },
+    meta: { requiresAuth: true },
+    query: {},
+  }),
+  useRouter: () => ({
+    push: mockRouterPush,
+    back: mockRouterBack,
+    replace: mockRouterReplace,
+    resolve: (to: { name: string }) => ({
+      fullPath: to.name === 'shoppingLists' ? '/lists' : '/unknown',
+    }),
+    afterEach: (cb: () => void) => {
+      afterEachCallbacks.push(cb);
+      return () => {};
+    },
+    options: {
+      history: {
+        state: {
+          get back() {
+            return mockHistoryBack;
+          },
+        },
+      },
+    },
+  }),
+}));
+
+// Mock the router module's currentPageTitle
+vi.mock('@/router', () => ({
+  currentPageTitle: ref('Test List'),
+}));
+
+// Mock auth store
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => ({
+    user: { id: 'user-1', email: 'alice@test.com', displayName: 'Alice' },
+    token: 'test-token',
+    isAuthenticated: true,
+  }),
+}));
+
+const mountShoppingListDetailView = () =>
+  mount(ShoppingListDetailView, {
+    global: {
+      plugins: [i18n],
+      stubs: {
+        Teleport: true,
+      },
+    },
+  });
+
+// Queue the list payload returned by api.get for the next mount (loadShoppingList is
+// called once on mount, so a single mockResolvedValueOnce is consumed).
+const mockShoppingListResponse = (shoppingList: Record<string, unknown>) => {
+  (
+    api.get as unknown as { mockResolvedValueOnce: (value: unknown) => unknown }
+  ).mockResolvedValueOnce({
+    data: { shoppingList },
+  });
+};
+
+describe('ShoppingListDetailView', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    afterEachCallbacks.length = 0;
+    mockHistoryBack = null;
+    // Mock history.state to avoid null reference in happy-dom
+    Object.defineProperty(window, 'history', {
+      value: { state: {} },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it('loads the list by route id and shows its name as the page title', async () => {
+    const wrapper = mountShoppingListDetailView();
+    await flushPromises();
+
+    expect(api.get).toHaveBeenCalledWith('/lists/list-1');
+    const { currentPageTitle } = await import('@/router');
+    expect(currentPageTitle.value).toBe('Test List');
+    expect(wrapper.find('[data-testid="list-empty"]').exists()).toBe(true);
+  });
+
+  it('shows the load error when the request fails', async () => {
+    (
+      api.get as unknown as { mockRejectedValueOnce: (value: unknown) => unknown }
+    ).mockRejectedValueOnce(new Error('boom'));
+    const wrapper = mountShoppingListDetailView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('We could not load this list.');
+    expect(wrapper.find('[data-testid="list-empty"]').exists()).toBe(false);
+  });
+
+  it('renders the settings button once the list has loaded', async () => {
+    mockShoppingListResponse({ ...getDefaultShoppingList(), name: 'Pantry' });
+    const wrapper = mountShoppingListDetailView();
+    await flushPromises();
+
+    const settingsButton = wrapper
+      .findAll('button')
+      .find((b) => b.attributes('aria-label') === 'Toggle settings');
+    expect(settingsButton).toBeDefined();
+  });
+
+  // The back arrow now goes through goBackTo (lib/backNavigation.ts,
+  // ADR-0019): it pops history when the previous entry already is `/lists`,
+  // and only falls back to a forward `replace` when it is not (e.g. a deep
+  // link straight into this page). It never `push`es — that would grow the
+  // stack, which is the bug this ADR fixes.
+  it('pops history when the previous entry is already the lists list', async () => {
+    mockHistoryBack = '/lists';
+    const wrapper = mountShoppingListDetailView();
+
+    await vi.dynamicImportSettled();
+    await wrapper.vm.$nextTick();
+
+    const backButton = wrapper
+      .findAll('button')
+      .find((b) => b.attributes('aria-label') === 'Back to lists')!;
+    await backButton.trigger('click');
+    await flushPromises();
+
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it('replaces instead of popping when the previous entry is not the lists list', async () => {
+    mockHistoryBack = null; // e.g. a deep link straight into /lists/:id
+    const wrapper = mountShoppingListDetailView();
+
+    await vi.dynamicImportSettled();
+    await wrapper.vm.$nextTick();
+
+    const backButton = wrapper
+      .findAll('button')
+      .find((b) => b.attributes('aria-label') === 'Back to lists')!;
+    await backButton.trigger('click');
+    await flushPromises();
+
+    expect(mockRouterReplace).toHaveBeenCalledWith({ name: 'shoppingLists' });
+    expect(mockRouterBack).not.toHaveBeenCalled();
+  });
+});

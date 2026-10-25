@@ -1,0 +1,33 @@
+{
+  "name": "careto",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/frontend",
+    "apps/backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c magenta,cyan \"./scripts/dev-backend.sh\" \"./scripts/dev-frontend.sh\"",
+    "dev:frontend": "./scripts/dev-frontend.sh",
+    "dev:backend": "./scripts/dev-backend.sh",
+    "dev:host": "./scripts/dev-host.sh",
+    "cluster:up": "./scripts/minikube-up.sh",
+    "cluster:build": "./scripts/minikube-build.sh",
+    "cluster:deploy": "./scripts/deploy.sh",
+    "cluster:host": "./scripts/cluster-host.sh",
+    "telepresence:connect": "./scripts/telepresence-connect.sh",
+    "telepresence:frontend": "./scripts/telepresence-intercept-frontend.sh",
+    "telepresence:backend": "./scripts/telepresence-intercept-backend.sh",
+    "telepresence:leave": "./scripts/telepresence-leave.sh",
+    "build": "npm run build --workspace @careto/backend && npm run build --workspace @careto/frontend",
+    "lint": "npm run lint --workspace @careto/backend && npm run lint --workspace @careto/frontend",
+    "test": "npm run test --workspace @careto/backend && npm run test --workspace @careto/frontend",
+    "test:integration": "npm run test:integration --workspace @careto/backend --",
+    "seed": "npm run seed --workspace @careto/backend",
+    "test:playwright": "bash ./scripts/test-playwright.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "concurrently": "10.0.6"
+  }
+}

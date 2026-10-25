@@ -1,0 +1,66 @@
+// Full Dex OAuth login flow.
+// Does NOT use the authenticatedPage fixture — starts unauthenticated and drives the
+// entire browser redirect chain: /login → /api/auth/oauth → /dex/auth/local → /lists.
+import { expect, test } from '@playwright/test';
+import { seedBuildId } from '../fixtures/auth';
+
+test.describe('Dex OAuth login', () => {
+  test('signs in via Dex and lands on /lists', async ({ page }) => {
+    // 1. Load the login page. Seeded first so main.ts's ADR-0016
+    //    "new build detected" check doesn't fire a purge-and-reload mid-flow
+    //    (see seedBuildId's doc comment in ../fixtures/auth).
+    await seedBuildId(page);
+    await page.goto('/login');
+
+    // Wait for the service worker to take control before leaving the app. A
+    // real user's browser almost always has it by now; skipping this left the
+    // spec racing worker activation against the Dex pages below, and it only
+    // failed (in CI, under load) when the worker won — which is exactly the
+    // case a /dex/ navigation-denylist regression in src/sw.ts would break.
+    await page.evaluate(() => navigator.serviceWorker.ready);
+
+    // 2. Wait for the OAuth config fetch to complete and the button to render.
+    //    LoginView.vue:118-127 renders an <a href="/api/auth/oauth"> with text from
+    //    oauthConfig.buttonText ("Sign in with Dex").
+    const dexButton = page.getByRole('link', { name: /Sign in with Dex/i });
+    await expect(dexButton).toBeVisible({ timeout: 10_000 });
+
+    // 3. Clicking the anchor triggers a full-page navigation through the backend
+    //    PKCE redirect to /dex/auth (Dex may settle on /dex/auth/local directly
+    //    because enablePasswordDB is the only connector).
+    await Promise.all([
+      page.waitForURL(/\/dex\/auth/, { timeout: 15_000 }),
+      dexButton.click(),
+    ]);
+
+    // 4. Dex login form — Dex v2.x defaults: name="login" (email) and name="password".
+    const emailInput = page.locator('input[name="login"]');
+    await expect(emailInput).toBeVisible({ timeout: 10_000 });
+    await emailInput.fill('admin@careto.local');
+    await page.locator('input[name="password"]').fill('password');
+
+    // 5. Submit the Dex login form. Dex validates credentials then either:
+    //    (a) redirects straight to the callback, or
+    //    (b) shows a consent/approval screen at /dex/approval first.
+    await Promise.all([
+      page.waitForURL(/\/dex\/(approval|auth)/, { timeout: 20_000 }),
+      page.locator('button[type="submit"]').click(),
+    ]);
+
+    // 5b. Handle the Dex consent screen when present.
+    //     The approval page renders two submit buttons; click the "Grant Access" one.
+    if (page.url().includes('/dex/approval')) {
+      await Promise.all([
+        page.waitForURL(/\/lists$/, { timeout: 20_000 }),
+        page.getByRole('button', { name: /Grant Access/i }).click(),
+      ]);
+    } else {
+      await page.waitForURL(/\/lists$/, { timeout: 20_000 });
+    }
+
+    // 6. Assert we landed on /lists and are authenticated.
+    //    Matches the assertion style used in tests/e2e/lists/login.guard.spec.ts.
+    await expect(page).toHaveURL(/\/lists$/);
+    await expect(page.getByRole('heading', { name: 'Careto' })).toBeVisible();
+  });
+});

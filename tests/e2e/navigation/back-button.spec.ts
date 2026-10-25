@@ -1,0 +1,54 @@
+// ADR-0019: the browser Back button and every topbar back arrow are the same
+// history operation (goBackTo/goBackOr, lib/backNavigation.ts). Before it,
+// every "back" exit was a forward `router.push` rather than a pop, so Back
+// re-opened pages the user had already left.
+// Uses the authenticatedPage fixture (no UI login).
+import { test, expect } from '../fixtures/auth';
+import { ShoppingListsPage, ShoppingListDetailPage } from '../pages';
+
+test('the topbar back arrow and the browser Back button reach the same place', async ({
+  authenticatedPage: page,
+}) => {
+  const shoppingListsPage = new ShoppingListsPage(page);
+  const shoppingListDetailPage = new ShoppingListDetailPage(page);
+
+  await page.goto('/lists');
+  const shoppingListName = 'e2e-back-btn-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  await shoppingListsPage.createShoppingList(shoppingListName);
+  await shoppingListsPage.openShoppingList(shoppingListName);
+  const shoppingListId = await shoppingListDetailPage.getShoppingListId();
+
+  await shoppingListDetailPage.openSettings();
+  await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}/settings$`));
+
+  // The topbar arrow pops history (goBackTo) exactly like Back would here.
+  await shoppingListDetailPage.clickBackToShoppingList();
+  await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}$`));
+
+  // One further Back press must reach the lists overview, not the settings
+  // page again — proving the arrow click was a real history pop, not an
+  // extra forward push that grew the stack.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/lists$/);
+});
+
+test('the list-detail back arrow (Back to lists) and browser Back agree', async ({
+  authenticatedPage: page,
+}) => {
+  const shoppingListsPage = new ShoppingListsPage(page);
+  const shoppingListDetailPage = new ShoppingListDetailPage(page);
+
+  await page.goto('/lists');
+  const shoppingListName = 'e2e-back-btn-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  await shoppingListsPage.createShoppingList(shoppingListName);
+  await shoppingListsPage.openShoppingList(shoppingListName);
+  const shoppingListId = await shoppingListDetailPage.getShoppingListId();
+
+  await shoppingListDetailPage.clickBackToShoppingLists();
+  await expect(page).toHaveURL(/\/lists$/);
+
+  // Forward, then Back again should return to the list, not double-pop past
+  // it — confirming clickBackToShoppingLists() popped exactly one entry.
+  await page.goForward();
+  await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}$`));
+});

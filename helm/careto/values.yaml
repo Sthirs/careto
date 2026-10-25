@@ -1,0 +1,140 @@
+namespace: careto
+fullnameOverride: careto
+
+devMode:
+  enabled: false
+
+defaultPodOptions: {}
+
+imagePullSecrets: []
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/sthirs/careto/frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+backend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/sthirs/careto/backend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  env:
+    PORT: "3000"
+    NODE_ENV: production
+    DB_SYNC: "true"
+    SEED_ON_STARTUP: "false"
+    AUTH_LOCAL_LOGIN_ENABLED: "true"
+    AUTH_LOCAL_REGISTRATION_ENABLED: "false"
+    CORS_ORIGIN: https://careto.example.com
+    FRONTEND_URL: ""
+    RATE_LIMIT_WINDOW_MS: "300000"
+    RATE_LIMIT_LIMIT: "500"
+    # ADR-0018 session lifetimes, in seconds. The refresh window is sliding:
+    # every rotation resets it, so an active user never has to sign in again.
+    # Neither is a secret — the refresh secrets themselves are per-token random
+    # values, not a signing key.
+    ACCESS_TOKEN_TTL_SECONDS: "3600"
+    REFRESH_TOKEN_TTL_SECONDS: "7776000"
+    REFRESH_TOKEN_REUSE_GRACE_SECONDS: "30"
+    # ADR-0020: not a secret — identifies the sender to push services, e.g.
+    # for abuse contact, per the Web Push protocol's VAPID `sub` claim.
+    VAPID_SUBJECT: mailto:noreply@careto.example.com
+    # Leave "false" here: a real deployment provisions its own persisted
+    # keypair via backend.secrets.vapid below. devMode overrides this to
+    # "true" so the backend mints an ephemeral one at boot instead of
+    # requiring a committed dev secret — see careto.backendEnvValue.
+    VAPID_AUTO_GENERATE: "false"
+    # Comma-separated extra push-service host suffixes accepted on
+    # POST /api/push/subscriptions, on top of the built-in list of the push
+    # services shipped browsers use. Leave empty unless your users are on a
+    # browser whose push service is not covered; it does not make this
+    # deployment deliver notifications itself. See
+    # apps/backend/src/services/push/endpointValidation.ts.
+    PUSH_ENDPOINT_ALLOWLIST: ""
+  secrets:
+    jwt:
+      secretName: careto-backend-secrets
+      key: JWT_SECRET
+    database:
+      secretName: careto-backend-database
+      keys:
+        hostname: DB_HOSTNAME
+        port: DB_PORT
+        username: DB_USERNAME
+        password: DB_PASSWORD
+        databaseName: DB_DATABASE_NAME
+    oauth:
+      secretName: careto-backend-oauth
+      keys:
+        config: OAUTH_CONFIG
+        stateSecret: OAUTH_STATE_SECRET
+    vapid:
+      secretName: careto-backend-vapid
+      keys:
+        publicKey: VAPID_PUBLIC_KEY
+        privateKey: VAPID_PRIVATE_KEY
+
+ingress:
+  enabled: true
+  className: nginx
+  host: careto.example.com
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  tls:
+    enabled: false
+    host: ""
+    secretName: ""
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "18-alpine@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5"
+    pullPolicy: IfNotPresent
+  service:
+    port: 5432
+  auth:
+    secretName: careto-postgres-auth
+    keys:
+      username: POSTGRES_USER
+      password: POSTGRES_PASSWORD
+      database: POSTGRES_DB
+  persistence:
+    enabled: false
+
+dex:
+  enabled: false
+  image:
+    repository: dexidp/dex
+    tag: "v2.46.1@sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5556
+    targetPort: 5556
+  config:
+    issuer: http://careto-dex.careto.svc.cluster.local:5556/dex
+    storage:
+      type: sqlite3
+      config:
+        file: /var/dex/dex.db
+    web:
+      http: 0.0.0.0:5556
+    staticClients:
+      - id: careto
+        name: 'Careto'
+        secret: ${CARETO_OAUTH_CLIENT_SECRET}
+        redirectURIs:
+          - 'http://careto.127.0.0.1.nip.io/api/auth/oauth/callback'
+    enablePasswordDB: true

@@ -1,0 +1,187 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs of the same ref so rapid pushes don't queue duplicate
+# full pipelines. Main-branch runs are never cancelled mid-flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Unit tests are independent of the Minikube pipeline and therefore run as a
+# separate job in parallel with it. The cluster job must stay a single job:
+# Minikube lives inside the runner VM and cannot be shared across jobs.
+jobs:
+  unit:
+    name: Unit tests (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace:
+          - backend
+          - frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test --workspace @careto/${{ matrix.workspace }}
+
+  # Kept the historical job id `test` (no display-name override) so any branch
+  # protection rule referencing the previous single-job check keeps working.
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # npm ci does not depend on Minikube: overlap it with cluster boot.
+      - name: Install dependencies
+        id: npm-ci
+        run: npm ci
+        background: true
+
+      - name: Start minikube
+        uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
+
+      - name: Enable ingress addon
+        run: minikube addons enable ingress
+
+      # Join point: everything below (except the image builds) needs
+      # node_modules, and npx resolves @playwright/test from devDependencies.
+      - name: Wait for dependencies
+        wait: npm-ci
+
+      # Browsers are cached between runs; keyed on the lockfile because the
+      # Playwright version is pinned in devDependencies. The install step still
+      # runs so OS-level deps (--with-deps) stay correct on cache hits.
+      # On cache hits the apt pass is skipped; on misses --with-deps runs fully.
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Browser download overlaps the image builds, Helm deploy, and
+      # integration tests below; joined just before the e2e step.
+      # On a browser-cache hit we skip --with-deps: the apt pass costs
+      # ~40-60s of dpkg CPU DURING the parallel image builds. OS packages
+      # can only drift while package-lock.json stays unchanged; the miss
+      # branch restores full --with-deps correctness on lockfile bumps.
+      - name: Install Playwright browsers
+        id: pw-install
+        run: |
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+        background: true
+
+      # Backend and frontend images are independent; build them concurrently
+      # against the same Minikube Docker daemon. Each build keeps its own log,
+      # and the group fails if either build fails.
+      - parallel:
+          - name: Build backend image in minikube
+            run: minikube image build -f apps/backend/Dockerfile -t careto/backend:dev .
+
+          - name: Build frontend image in minikube
+            run: minikube image build -f apps/frontend/Dockerfile -t careto/frontend:dev .
+
+      - name: Deploy with Helm
+        run: |
+          MINIKUBE_IP=$(minikube ip)
+          DEV_HOST="careto.${MINIKUBE_IP}.nip.io"
+
+          helm upgrade --install careto ./helm/careto \
+            --namespace careto \
+            --create-namespace \
+            --wait \
+            --timeout 5m \
+            --set devMode.enabled=true \
+            --set dex.enabled=true \
+            --set ingress.host="$DEV_HOST" \
+            --set backend.env.CORS_ORIGIN="http://$DEV_HOST"
+
+      - name: Wait for pods to be ready
+        run: |
+          kubectl -n careto wait --for=condition=ready pod --all --timeout=120s
+
+      - name: Wait for ingress controller
+        run: |
+          kubectl -n ingress-nginx wait --for=condition=ready pod -l app.kubernetes.io/component=controller --timeout=120s
+
+      - name: Run integration tests
+        run: |
+          MINIKUBE_IP=$(minikube ip)
+          DEV_HOST="careto.${MINIKUBE_IP}.nip.io"
+
+          # Wait for backend to respond
+          for i in $(seq 1 30); do
+            if curl -sf "http://${DEV_HOST}/api/health" > /dev/null 2>&1; then
+              echo "Backend is ready"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 5
+          done
+
+          npm run test:integration -- "http://${DEV_HOST}"
+
+      - name: Wait for Playwright browsers
+        wait: pw-install
+
+      - name: Run Playwright tests
+        run: |
+          MINIKUBE_IP=$(minikube ip)
+          DEV_HOST="careto.${MINIKUBE_IP}.nip.io"
+          npm run test:playwright -- "http://${DEV_HOST}"
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 3
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl -n careto get pods
+          echo "=== Pod logs (backend) ==="
+          kubectl -n careto logs -l app.kubernetes.io/component=backend --tail=200 || true
+          echo "=== Pod logs (frontend) ==="
+          kubectl -n careto logs -l app.kubernetes.io/component=frontend --tail=50 || true
+          echo "=== Events ==="
+          kubectl -n careto get events --sort-by=.lastTimestamp | tail -20 || true
