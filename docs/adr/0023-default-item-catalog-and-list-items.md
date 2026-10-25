@@ -8,6 +8,7 @@
 
 The List screen ([`docs/specifications.md`](../specifications.md) §List) needs
 real items. The spec requires:
+
 - a default catalog of common items, grouped by store section and translated;
 - custom items that belong to one list only;
 - a search over both;
@@ -142,6 +143,7 @@ as one row per item per list.
     coverage test enforces.
 - **Production DDL** (prod runs `DB_SYNC=false`). Create these tables once,
   before deploying, matching the entities:
+
   ```sql
   CREATE TABLE catalog_sections (key varchar(40) PRIMARY KEY, position int NOT NULL);
   CREATE TABLE catalog_items (key varchar(60) PRIMARY KEY,
@@ -153,6 +155,7 @@ as one row per item per list.
   -- list_custom_items and list_items: generate with `typeorm schema:log` against
   -- a scratch database, so the enum types, CHECK and unique index names match.
   ```
+
 - **Follow-ups (topics):**
   - a List settings screen and endpoint to reorder store sections;
   - the item ⋮ menu (rename or delete a custom item);
