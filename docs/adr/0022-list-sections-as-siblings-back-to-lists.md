@@ -1,6 +1,6 @@
 # ADR-0022: List sections are siblings — tabs replace history, every section's back arrow goes to My lists
 
-- **Status:** 🟡 proposed
+- **Status:** 🟢 accepted
 - **Date:** 2026-10-25
 - **Deciders:** Sthirs
 - **Supersedes:** [ADR-0019](0019-browser-back-as-dismiss-and-up-navigation.md), decision 1, for the list-settings back target only. Every other part of ADR-0019 stays in force.

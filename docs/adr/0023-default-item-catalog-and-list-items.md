@@ -1,6 +1,6 @@
 # ADR-0023: Default item catalog and list items — slug-keyed reference tables, labels in the frontend
 
-- **Status:** 🟡 proposed
+- **Status:** 🟢 accepted
 - **Date:** 2026-10-25
 - **Deciders:** Sthirs
 
