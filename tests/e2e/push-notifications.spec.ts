@@ -135,11 +135,32 @@ const test = base.extend<{ pushPage: Page; deliverPush: (payload: PushPayload) =
       // race against the CDP registrationId capture above.
       await pushPage.evaluate(() => navigator.serviceWorker.ready);
       await expect.poll(() => registrationId, { timeout: 10_000 }).toBeTruthy();
-      await cdp.send('ServiceWorker.deliverPushMessage', {
-        origin: baseURL,
-        registrationId: registrationId as string,
-        data: JSON.stringify(payload),
-      });
+
+      // Roughly 1 delivery in 10, Chromium drops the notification: the
+      // worker's `push` handler runs and `showNotification()` resolves, yet
+      // `getNotifications()` never reports it (observed by instrumenting the
+      // worker — the count stays at 0, it is never shown and then closed).
+      // A redelivery has always recovered it, and is harmless otherwise:
+      // sw.ts tags notifications by URL, so a repeat replaces rather than
+      // duplicates.
+      const notificationCount = () =>
+        pushPage.evaluate(async () => {
+          const registration = await navigator.serviceWorker.ready;
+          return (await registration.getNotifications()).length;
+        });
+
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        await cdp.send('ServiceWorker.deliverPushMessage', {
+          origin: baseURL,
+          registrationId: registrationId as string,
+          data: JSON.stringify(payload),
+        });
+        const deadline = Date.now() + 2_000;
+        while (Date.now() < deadline) {
+          if ((await notificationCount()) > 0) return;
+          await pushPage.waitForTimeout(200);
+        }
+      }
     });
   },
 });
