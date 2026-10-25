@@ -2,7 +2,7 @@
 
 Careto is an application that autofill the grocery list based on the user's preferences and previous shopping habits.
 
-## Features 
+## Features
 
 - The application is multilingual and supports English and Italian.
 - Users can create an account and sign in to the application.
@@ -16,6 +16,7 @@ Careto is an application that autofill the grocery list based on the user's pref
 - The app must work offline and sync when the connection is restored.
 
 ### List
+
 - The shopping list is a collection of items that the user wants to buy.
 - Each item has a name and an icon.
 - Each item is part of a store section.
@@ -29,6 +30,7 @@ Careto is an application that autofill the grocery list based on the user's pref
 - Items keep information of the last time the user bought them.
 
 ### Dishes
+
 - The dishes section is a collection of dishes.
 - Each user of the list can add, edit and delete dishes.
 - Each dish has a name, an image (optional), and a list of ingredients.
@@ -37,6 +39,7 @@ Careto is an application that autofill the grocery list based on the user's pref
 - Dishes keep information of the last time the user added them to the list.
 
 ### Week plan
+
 - The week plan section is a collection of days.
 - Each day has two slots: lunch and dinner dishes.
 - A slot can be empty or can have a dish assigned to it.
@@ -45,13 +48,15 @@ Careto is an application that autofill the grocery list based on the user's pref
 - Dishes are proposed based on rotation and the last time they were added to the list.
 
 ### List Settings
+
 - The day on which the shopping is made can be set.
 - Name and image of the list can be updated.
 - The user can define for each day of the week if there should be one or two slots.
 - The user can sort the store sections in the list.
 
 ### Learning and Planning
-- Learning estimates when each recurring product runs out and which dishes the user likes. 
+
+- Learning estimates when each recurring product runs out and which dishes the user likes.
 - Planning proposes the week's menu and turns menu plus due products into the shopping list.
 - Each product can have two independent demands: a base consumption, with a learned frequency, and the consumption of planned dishes, known from the menu. On the list they become a single item; the reason behind each purchase decides what the system learns.
   - Base consumption. What gets used regardless of the menu: yogurt for breakfast, fruit, bread. Only recurring products have it.
