@@ -172,16 +172,16 @@ describe('List Invitations', () => {
 
       expect(Object.keys(registeredResponse.body.invitation).sort()).toStrictEqual([
         'createdAt',
-        'shoppingListId',
         'id',
         'inviteeEmail',
+        'shoppingListId',
         'status',
       ]);
       expect(Object.keys(unregisteredResponse.body.invitation).sort()).toStrictEqual([
         'createdAt',
-        'shoppingListId',
         'id',
         'inviteeEmail',
+        'shoppingListId',
         'status',
       ]);
     });
