@@ -1,0 +1,21 @@
+// Default items of the `frozen-convenience` section, as stable keys (ADR-0014).
+
+export const frozenConvenience: readonly string[] = [
+  'baked-beans',
+  'burritos',
+  'chicken-wings',
+  'chinese-food',
+  'fish-sticks',
+  'frozen-vegetables',
+  'ice-cream',
+  'indian-food',
+  'italian-food',
+  'dumplings',
+  'lasagna',
+  'mexican-food',
+  'pizza',
+  'french-fries',
+  'soup',
+  'tv-dinner',
+  'thai-food',
+];

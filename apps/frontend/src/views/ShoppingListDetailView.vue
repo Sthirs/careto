@@ -1,17 +1,29 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import TopbarBackButton from '@/components/list-detail/TopbarBackButton.vue';
-import TopbarSettingsButtons from '@/components/list-detail/TopbarSettingsButtons.vue';
+import AccountAvatarLink from '@/components/AccountAvatarLink.vue';
+import ItemSearchField from '@/components/list-items/ItemSearchField.vue';
+import ItemSearchResults from '@/components/list-items/ItemSearchResults.vue';
+import LastUsedSection from '@/components/list-items/LastUsedSection.vue';
+import ListItemTile from '@/components/list-items/ListItemTile.vue';
+import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
+import ScreenHeader from '@/components/ScreenHeader.vue';
+import { useItemCatalog } from '@/composables/useItemCatalog';
+import { useItemSearch, type SearchResult } from '@/composables/useItemSearch';
+import { useListItems } from '@/composables/useListItems';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
-import { currentPageTitle } from '@/router';
+import { iconForItem } from '@/lib/itemIcons';
+import { sortLastUsed, sortToBuy } from '@/lib/listItemOrder';
 
+import type { ListItem } from '@/types/listItem';
 import type { ShoppingListDetail } from '@/types/shoppingList';
 
-const { t } = useI18n();
+const REMOVE_HINT_ID = 'list-item-remove-hint';
+
+const { t, locale } = useI18n();
 
 const route = useRoute();
 const router = useRouter();
@@ -19,19 +31,47 @@ const router = useRouter();
 const shoppingList = ref<ShoppingListDetail | null>(null);
 const isLoading = ref(true);
 const errorMessage = ref('');
+const actionError = ref('');
+const announcement = ref('');
+const query = ref('');
+const lastUsedExpanded = ref(true);
+// Seeded from history state so the header has a title before the fetch lands.
+const title = ref<string>(history.state?.shoppingListName ? String(history.state.shoppingListName) : '');
 
 const shoppingListId = computed(() => route.params.id as string);
+
+const { catalog, loadCatalog } = useItemCatalog();
+const { items, customItems, sectionOrder, loadItems, addItem, setStatus, removeItem } =
+  useListItems(() => shoppingListId.value);
+const results = useItemSearch(query, catalog, customItems, items);
+
+const labelOf = (item: ListItem) =>
+  item.customItem ? item.customItem.name : t(`catalog.items.${item.catalogItemKey}`);
+
+const tileOf = (item: ListItem) => ({
+  id: item.id,
+  label: labelOf(item),
+  icon: iconForItem(item.catalogItemKey, item.sectionKey),
+});
+
+const toBuy = computed(() =>
+  sortToBuy(items.value, sectionOrder.value, labelOf, locale.value).map(tileOf),
+);
+const lastUsed = computed(() => sortLastUsed(items.value).map(tileOf));
+const isSearching = computed(() => query.value.trim().length > 0);
 
 const loadShoppingList = async () => {
   isLoading.value = true;
   errorMessage.value = '';
 
   try {
-    const { data } = await api.get<{ shoppingList: ShoppingListDetail }>(
-      `/lists/${shoppingListId.value}`,
-    );
+    const [{ data }] = await Promise.all([
+      api.get<{ shoppingList: ShoppingListDetail }>(`/lists/${shoppingListId.value}`),
+      loadItems(),
+      loadCatalog(),
+    ]);
     shoppingList.value = data.shoppingList;
-    currentPageTitle.value = data.shoppingList.name;
+    title.value = data.shoppingList.name;
   } catch {
     errorMessage.value = t('shoppingListDetail.loadFailed');
   } finally {
@@ -39,62 +79,122 @@ const loadShoppingList = async () => {
   }
 };
 
+const runAction = async (action: () => Promise<unknown>) => {
+  actionError.value = '';
+  try {
+    await action();
+  } catch {
+    actionError.value = t('shoppingListDetail.actionFailed');
+  }
+};
+
+const itemById = (id: string) => items.value.find((item) => item.id === id);
+
+const markBought = (id: string) => {
+  const item = itemById(id);
+  if (item) void runAction(() => setStatus(item, 'bought'));
+};
+
+const addBack = (id: string) => {
+  const item = itemById(id);
+  if (item) void runAction(() => setStatus(item, 'to_buy'));
+};
+
+const remove = (id: string) => {
+  const item = itemById(id);
+  if (!item) return;
+  announcement.value = t('shoppingListDetail.removedAnnouncement', { name: labelOf(item) });
+  void runAction(() => removeItem(item));
+};
+
+const pick = (result: SearchResult) => {
+  query.value = '';
+  void runAction(() => addItem(result.input));
+};
+
+// Every list section goes back to My lists (ADR-0022).
 const goBack = () => {
   goBackTo(router, { name: 'shoppingLists' });
 };
 
-onMounted(() => {
-  if (history.state.shoppingListName) {
-    currentPageTitle.value = String(history.state.shoppingListName);
-  }
-  loadShoppingList();
-});
-
-onBeforeUnmount(() => {
-  currentPageTitle.value = null;
-});
+onMounted(loadShoppingList);
 </script>
 
 <template>
-  <!-- Topbar: back arrow -->
-  <TopbarBackButton @back="goBack" />
+  <div class="relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
+    <ScreenHeader
+      :title="title"
+      :back-label="t('shoppingListDetail.backToShoppingLists')"
+      @back="goBack"
+    >
+      <template #trailing><AccountAvatarLink /></template>
+    </ScreenHeader>
 
-  <!-- Topbar: actions -->
-  <TopbarSettingsButtons
-    :shopping-list="shoppingList"
-    :shopping-list-id="shoppingListId"
-  />
-
-  <main class="flex flex-col flex-1 min-h-0 text-[#E5E0ED]">
-    <div class="mx-auto w-full max-w-5xl flex flex-col flex-1 min-h-0">
-      <!-- Loading -->
-      <div
-        v-if="isLoading"
-        class="flex-1 flex items-center justify-center text-[#C8C4D7]"
-      >
+    <main class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pt-3 pb-[220px]">
+      <p v-if="isLoading" class="flex flex-1 items-center justify-center text-text-secondary">
         {{ t('shoppingListDetail.loading') }}
-      </div>
+      </p>
 
-      <!-- Items, dishes and week plan sections land here. -->
-      <div
-        v-else-if="shoppingList"
-        data-testid="list-empty"
-        class="flex-1 flex items-center justify-center px-4 text-[#C8C4D7]"
-      >
-        {{ t('shoppingListDetail.empty') }}
-      </div>
-
-      <!-- Error -->
-      <div
-        v-if="errorMessage"
-        class="flex-1 flex items-center justify-center px-4"
-      >
+      <template v-else-if="shoppingList">
+        <p v-if="actionError" role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
+          {{ actionError }}
+        </p>
         <p
-          class="rounded-md border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+          v-if="items.length === 0"
+          data-testid="list-empty"
+          class="flex flex-1 items-center justify-center text-text-secondary"
         >
+          {{ t('shoppingListDetail.empty') }}
+        </p>
+        <ul
+          v-if="toBuy.length > 0"
+          :aria-label="t('shoppingListDetail.toBuyAria')"
+          data-testid="to-buy"
+          class="m-0 flex list-none flex-col gap-1 overflow-hidden rounded-xl p-0"
+        >
+          <ListItemTile
+            v-for="tile in toBuy"
+            :key="tile.id"
+            tone="to-buy"
+            :label="tile.label"
+            :icon="tile.icon"
+            :action-label="t('shoppingListDetail.markBoughtAria', { name: tile.label })"
+            :described-by="REMOVE_HINT_ID"
+            @activate="markBought(tile.id)"
+            @remove="remove(tile.id)"
+          />
+        </ul>
+        <LastUsedSection
+          v-if="lastUsed.length > 0"
+          v-model:expanded="lastUsedExpanded"
+          :items="lastUsed"
+          :described-by="REMOVE_HINT_ID"
+          @add-back="addBack"
+          @remove="remove"
+        />
+      </template>
+
+      <div v-if="errorMessage" class="flex flex-1 items-center justify-center px-2">
+        <p role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
           {{ errorMessage }}
         </p>
       </div>
-    </div>
-  </main>
+      <p :id="REMOVE_HINT_ID" class="sr-only">{{ t('shoppingListDetail.removeHint') }}</p>
+      <p class="sr-only" aria-live="polite">{{ announcement }}</p>
+    </main>
+
+    <button
+      v-if="isSearching"
+      type="button"
+      tabindex="-1"
+      class="absolute inset-0 z-[9] bg-black/55"
+      :aria-label="t('shoppingListDetail.closeSearch')"
+      @click="query = ''"
+    ></button>
+
+    <ListSectionsDock :shopping-list-id="shoppingListId" :shopping-list-name="title || undefined" current="list-detail">
+      <ItemSearchResults v-if="isSearching" :results="results" @pick="pick" />
+      <ItemSearchField v-if="shoppingList" v-model="query" />
+    </ListSectionsDock>
+  </div>
 </template>

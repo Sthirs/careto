@@ -25,7 +25,7 @@ const emit = defineEmits<{ close: [] }>();
         height="14"
         viewBox="0 0 14 14"
         fill="none"
-        stroke="#C8C4D7"
+        stroke="#D3DAE0"
         stroke-width="2"
         stroke-linecap="round"
       >

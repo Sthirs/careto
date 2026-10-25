@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, RouterLinkStub } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 import ShoppingListsView from '@/views/ShoppingListsView.vue';
@@ -22,6 +22,7 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: mockRouterPush,
   }),
+  RouterLink: { name: 'RouterLink', template: '<a><slot /></a>' },
 }));
 
 // Mock the router module's currentPageTitle
@@ -53,7 +54,7 @@ const makeShoppingList = (overrides: Partial<ShoppingList> = {}): ShoppingList =
 
 const mountComponent = async (shoppingLists: ShoppingList[] = []) => {
   mockApiGet.mockResolvedValue({ data: { shoppingLists } });
-  const wrapper = mount(ShoppingListsView, { global: { plugins: [i18n] } });
+  const wrapper = mount(ShoppingListsView, { global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } } });
   await vi.dynamicImportSettled();
   await wrapper.vm.$nextTick();
   return wrapper;
@@ -64,7 +65,7 @@ const mountWithInvitations = async (
   shoppingLists: ShoppingList[] = [],
 ) => {
   mockApiGet.mockResolvedValue({ data: { shoppingLists, invitations } });
-  const wrapper = mount(ShoppingListsView, { global: { plugins: [i18n] } });
+  const wrapper = mount(ShoppingListsView, { global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } } });
   await vi.dynamicImportSettled();
   await wrapper.vm.$nextTick();
   return wrapper;
@@ -80,11 +81,35 @@ describe('ShoppingListsView', () => {
     mockApiPost.mockResolvedValue({ data: {} });
   });
 
-  it('renders the "+ Create list" button', async () => {
+  it('renders the "My lists" header with an account link', async () => {
     const wrapper = await mountComponent([makeShoppingList()]);
-    const button = wrapper.find('button');
-    expect(button.exists()).toBe(true);
-    expect(button.text()).toContain('+ Create list');
+    expect(wrapper.find('h1').text()).toBe('My lists');
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links.some((l) => JSON.stringify(l.props('to')) === JSON.stringify({ name: 'account' }))).toBe(true);
+  });
+
+  it('renders the "New list" button and opens the create form with Save/Cancel', async () => {
+    const wrapper = await mountComponent([makeShoppingList()]);
+    const button = wrapper.findAll('button').find((b) => b.text().includes('New list'));
+    expect(button).toBeDefined();
+    await button!.trigger('click');
+    expect(wrapper.find('input#new-list-name').exists()).toBe(true);
+    expect(wrapper.find('button[type="submit"]').text()).toBe('Save');
+  });
+
+  it('creates a list on submit and reloads the overview', async () => {
+    const wrapper = await mountComponent([]);
+    await wrapper.findAll('button').find((b) => b.text().includes('New list'))!.trigger('click');
+    await wrapper.find('input#new-list-name').setValue('Weekend at the lake');
+    await wrapper.find('form').trigger('submit');
+    await vi.dynamicImportSettled();
+    expect(mockApiPost).toHaveBeenCalledWith('/lists', { name: 'Weekend at the lake' });
+  });
+
+  it('links each card to the list detail route', async () => {
+    const wrapper = await mountComponent([makeShoppingList({ id: 'list-9', name: 'Home' })]);
+    const card = wrapper.find('[data-testid="list-card"]').findComponent(RouterLinkStub);
+    expect(card.props('to')).toMatchObject({ name: 'list-detail', params: { id: 'list-9' } });
   });
 
   it('renders 2 avatars for a list with 2 members', async () => {
@@ -125,11 +150,12 @@ describe('ShoppingListsView', () => {
     expect(wrapper.html()).toContain('+2');
   });
 
-  it('renders gradient initials thumbnail (no <img>) when imageUrl is null', async () => {
+  it('renders a coloured initials cover (no <img>) when imageUrl is null', async () => {
     const wrapper = await mountComponent([makeShoppingList({ imageUrl: null, name: 'Weekend in Venice' })]);
     // No <img> tag for this list
-    const imgs = wrapper.findAll('img');
+    const imgs = wrapper.findAll('[data-testid="list-card"] img');
     expect(imgs.length).toBe(0);
+    expect(wrapper.find('[role="img"][aria-label="Weekend in Venice thumbnail"]').exists()).toBe(true);
     // Initials "WV" rendered
     expect(wrapper.html()).toContain('WV');
   });
@@ -138,28 +164,15 @@ describe('ShoppingListsView', () => {
     const wrapper = await mountComponent([
       makeShoppingList({ imageUrl: 'https://example.com/photo.jpg', name: 'Venice Trip' }),
     ]);
-    const img = wrapper.find('img');
+    const img = wrapper.find('[data-testid="list-card"] img');
     expect(img.exists()).toBe(true);
     expect(img.attributes('src')).toBe('https://example.com/photo.jpg');
+    expect(img.classes()).toContain('object-cover');
   });
 
-  it('img-branch wrapper has h-20 w-20 when imageUrl is set', async () => {
-    const wrapper = await mountComponent([
-      makeShoppingList({ imageUrl: 'https://example.com/photo.jpg', name: 'Venice Trip' }),
-    ]);
-    // Find the wrapper div that contains the img (the one with h-20 w-20 classes)
-    const img = wrapper.find('img');
-    const wrapperDiv = img.element.parentElement;
-    expect(wrapperDiv).toBeTruthy();
-    expect(wrapperDiv!.classList.contains('h-20')).toBe(true);
-    expect(wrapperDiv!.classList.contains('w-20')).toBe(true);
-    expect(wrapperDiv!.classList.contains('rounded-xl')).toBe(true);
-    expect(wrapperDiv!.classList.contains('shrink-0')).toBe(true);
-  });
-
-  it('sets currentPageTitle to "Careto" on mount', async () => {
+  it('sets currentPageTitle to "My lists" on mount', async () => {
     await mountComponent([makeShoppingList()]);
-    expect(mockCurrentPageTitle.value).toBe('Careto');
+    expect(mockCurrentPageTitle.value).toBe('My lists');
   });
 
   it('(F1) surfaces accept/decline errors inline on the matching invitation card', async () => {

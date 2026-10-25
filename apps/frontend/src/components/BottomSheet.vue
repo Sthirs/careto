@@ -44,7 +44,7 @@ watch(
 );
 
 const DEFAULT_PANEL_CLASS =
-  'relative w-full max-w-[390px] rounded-t-[24px] border-t border-white/10 bg-[#1C1B25] pb-6 shadow-[0_-12px_20px_rgba(0,0,0,0.6)] sm:rounded-[24px] sm:border sm:pb-5 sm:shadow-[0_20px_40px_rgba(0,0,0,0.6)]';
+  'relative w-full max-w-[390px] rounded-t-[24px] border-t border-white/10 bg-[#222C34] pb-6 shadow-[0_-12px_20px_rgba(0,0,0,0.6)] sm:rounded-[24px] sm:border sm:pb-5 sm:shadow-[0_20px_40px_rgba(0,0,0,0.6)]';
 </script>
 
 <template>
@@ -80,7 +80,7 @@ const DEFAULT_PANEL_CLASS =
         >
           <div data-sheet-drag class="flex justify-center pt-3 pb-1">
             <div
-              class="h-1.5 w-12 rounded-full bg-[rgba(200,196,215,0.3)]"
+              class="h-1.5 w-12 rounded-full bg-[rgba(211,218,224,0.3)]"
               aria-hidden="true"
             ></div>
           </div>

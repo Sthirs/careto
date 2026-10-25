@@ -28,6 +28,13 @@ Careto is an application that autofill the grocery list based on the user's pref
 - The items can be added by the user, by the dishes, or by the recurrent logic.
 - The item keep the information on how it has been added to the list.
 - Items keep information of the last time the user bought them.
+- The application ships a default catalog of common items, grouped by store section and translated into every supported language. Any list can use any default item.
+- A user can also add a custom item, typed by name. A custom item belongs only to the list it was created in and is filed under an "Own items" store section.
+- Adding an item starts from a search that matches, in the user's language, the default catalog and the custom items of that list; when nothing matches exactly, the typed text can be added as a new custom item.
+- An item appears at most once in a list: adding an item that is already in the list (bought or not) puts it back among the items to buy.
+- Within a store section, items are sorted alphabetically by their name in the user's language. Each list can have its own order of store sections; a list that never reordered them uses the default order.
+- Bought items are shown in a collapsible "Last used" section, most recently bought first; tapping one puts it back among the items to buy.
+- Swiping an item to the left removes it from the list.
 
 ### Dishes
 

@@ -56,23 +56,25 @@ test('account page: initials avatar, read-only email, rename persists', async ({
   const account = new AccountPage(page);
   await page.goto('/account');
 
-  // Topbar title
-  await expect(page.getByText('Account', { exact: true }).first()).toBeVisible();
+  // Screen header
+  await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible();
 
   // Initial state — demo user "Demo User"
   await expect(account.avatar).toHaveText('D');
-  await expect(account.nameHeading).toHaveText('Demo User');
   await expect(account.nameInput).toHaveValue('Demo User');
   await expect(account.emailInput).toHaveValue('demo@careto.local');
-  await expect(account.emailInput).toBeDisabled();
+  await expect(account.emailInput).not.toBeEditable();
+  await expect(page.getByText('Managed by your sign-in provider')).toBeVisible();
 
   await account.nameInput.fill('Zoe Example');
   await expect(account.avatar).toHaveText('Z');
 
+  const saved = page.waitForResponse(
+    (r) => r.url().includes('/api/auth/me') && r.request().method() === 'PATCH',
+  );
   await account.saveButton.click();
-
-  await expect(account.nameHeading).toHaveText('Zoe Example');
-  await expect(account.topbarAvatar).toHaveText('Z');
+  expect((await saved).status()).toBe(200);
+  await expect(account.saveButton).toBeDisabled();
 
   await page.reload();
   await expect(account.nameInput).toHaveValue('Zoe Example');

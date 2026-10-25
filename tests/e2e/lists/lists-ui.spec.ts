@@ -11,9 +11,9 @@ test('lists overview matches UI design: thumbnails and avatars', async ({ authen
   const headingCount = await page.getByRole('heading', { level: 2 }).count();
   expect(headingCount).toBeGreaterThanOrEqual(2);
 
-  // 3. Mercà de Rialto — gradient thumbnail (no img), 2 members (demo + alice)
+  // 3. Marcà de Rialto — gradient thumbnail (no img), 2 members (demo + alice)
   const rialtoCard = page.locator('li').filter({
-    has: page.getByRole('heading', { name: 'Mercà de Rialto', exact: true, level: 2 }),
+    has: page.getByRole('heading', { name: 'Marcà de Rialto', exact: true, level: 2 }),
   });
   await expect(rialtoCard).toBeVisible();
   await expect(rialtoCard.locator('div[aria-label*="thumbnail"]')).toBeVisible();
@@ -32,9 +32,31 @@ test('lists overview matches UI design: thumbnails and avatars', async ({ authen
   // 5. Office Pantry should NOT be visible (demo is not a member)
   await expect(page.getByRole('heading', { name: 'Office Pantry', level: 2 })).not.toBeVisible();
 
-  // 6. Click + Create list button reveals the form
-  await page.getByRole('button', { name: '+ Create list' }).click();
+  // 6. Click New list button reveals the form
+  await page.getByRole('button', { name: 'New list' }).click();
   await expect(page.getByRole('textbox', { name: 'List name' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Create', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+});
+
+test('lists overview: header, then creating a list from the bottom sheet shows its cover card', async ({ authenticatedPage: page }) => {
+  await page.goto('/lists');
+
+  await expect(page.getByRole('heading', { name: 'My lists', level: 1 })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open account page' })).toBeVisible();
+
+  const shoppingListName = 'e2e-cover-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  await page.getByRole('button', { name: 'New list' }).click();
+  await page.getByRole('textbox', { name: 'List name' }).fill(shoppingListName);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  const card = page.getByTestId('list-card').filter({
+    has: page.getByRole('heading', { name: shoppingListName, level: 2 }),
+  });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole('img', { name: `${shoppingListName} thumbnail` })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New list' })).toBeVisible();
+
+  await card.getByRole('link').click();
+  await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+$/);
 });

@@ -19,7 +19,7 @@ export const SEED_USERS: SeedUser[] = [
 ];
 
 export const SEED_SHOPPING_LISTS: SeedShoppingList[] = [
-  { name: 'Mercà de Rialto', memberEmails: [DEMO_EMAIL, 'alice@careto.local'] },
+  { name: 'Marcà de Rialto', memberEmails: [DEMO_EMAIL, 'alice@careto.local'] },
   { name: 'Spesa dea setimana', memberEmails: [DEMO_EMAIL, 'alice@careto.local', 'bob@careto.local'] },
   { name: 'Office Pantry', memberEmails: ['alice@careto.local', 'carol@careto.local'] },
 ];

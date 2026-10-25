@@ -1,0 +1,26 @@
+// Icon paths (24x24 line style) for the `milk-cheese` catalog section.
+
+export const milkCheeseIcons: Readonly<Record<string, string>> = {
+  'blue-cheese': 'M3 16l12-9 6 4v7H3z M3 16h18 M7 15l2-1 M11 13l1.5 1.5 M15 15l2-1 M16 11.5l1.5 1',
+  butter: 'M3 15h18l-1 4H4z M6 15v-5l2-2h10v7 M8 8v7',
+  cheddar: 'M3 10l11-5 7 4v8l-11 5-7-4z M3 10l7 4 11-5 M10 14v8 M14 13h.01 M17 15h.01',
+  'creme-fraiche': 'M5 8h14l-1.5 12h-11z M4 6h16v2H4z M8 13h8 M9 8c0-2 1.5-3 3-4.5 1.5 1.5 3 2.5 3 4.5',
+  eggs: 'M9 5c2.5 0 4.5 4 4.5 8a4.5 4.5 0 0 1-9 0c0-4 2-8 4.5-8z M16 8c2 0 3.5 3 3.5 6a3.5 3.5 0 0 1-6.6 1.6',
+  feta: 'M4 9h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z M8 12h8v6H8z M3.5 7h17v2h-17z',
+  'cream-cheese': 'M3 11h18v6a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z M3 11c0-1.7 4-3 9-3s9 1.3 9 3 M8 15h8',
+  gorgonzola: 'M4 18c0-6 4-11 9-12l7 4v8z M4 18h16 M8 15c1-1 2 0 3-1 M13 12c1 0 1.5 1 2.5.5 M15 16c.5-1 1.5-1 2 0',
+  'cottage-cheese': 'M5 10h14l-1.5 10h-11z M5 10c1-2 2-2 3 0 1-2 2-2 3 0 1-2 2-2 3 0 1-2 2-2 3 0 1-2 2-2 2 0',
+  yogurt: 'M6 7h12l-1.5 14h-9z M5 4h14v3H5z M9 12h6 M9 15h6',
+  cheese: 'M3 16l12-9 6 4v7H3z M3 16h18 M10 13h.01 M15 15h.01',
+  margarine: 'M3 10h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M2 8h20v2H2z M8 14h8',
+  mascarpone: 'M4 9h16v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z M4 9c0-1.7 3.6-3 8-3s8 1.3 8 3 M8 14c2 1 6 1 8 0',
+  milk: 'M8 3h8v3l2 3v12H6V9l2-3z M6 13h12',
+  mozzarella: 'M4.5 13a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0z M9 10a3.5 3.5 0 0 1 3-2 M18.5 3.5c.7 1 1 1.6 1 2.2a1 1 0 0 1-2 0c0-.6.3-1.2 1-2.2z',
+  parmesan: 'M3 18L12 4l9 14z M3 18v2h18v-2 M6 15h12',
+  quark: 'M5 6h14v14H5z M5 9h14 M9 14h6 M4.5 6h15',
+  cream: 'M7 8h10l1 12H6z M6.5 8l.5-4h10l2 2-2 2 M9 13h6',
+  'grated-cheese': 'M7 3h10l2 18H5z M10 3V1.5h4V3 M9.5 8h.01 M12 8h.01 M14.5 8h.01 M9.5 12h.01 M12 12h.01 M14.5 12h.01 M9.5 16h.01 M12 16h.01 M14.5 16h.01',
+  ricotta: 'M5 11h14l-2 9H7z M5 11c0-3 3-5 7-5s7 2 7 5 M8 14l.5 4 M12 14v4 M16 14l-.5 4',
+  'sour-cream': 'M5 10h14l-1.5 10h-11z M4 8h16v2H4z M9 8c0-2 2-3 3-5 1 2 3 3 3 5',
+  'soy-milk': 'M8 3h8v3l2 3v12H6V9l2-3z M6 11h12 M8.8 15.5a1.4 2 0 1 0 2.8 0a1.4 2 0 1 0 -2.8 0z M12.4 16a1.4 2 0 1 0 2.8 0a1.4 2 0 1 0 -2.8 0z',
+};

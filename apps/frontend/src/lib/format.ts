@@ -18,3 +18,15 @@ export const shoppingListInitials = (name: string): string => {
     .filter((w) => !SHOPPING_LIST_INITIAL_STOPWORDS.has(w.toLowerCase()));
   return words.slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('');
 };
+
+// Placeholder colours from the design: member avatars and list covers without
+// an image. Picked per id so a given person or list keeps its colour.
+export const AVATAR_PALETTE = ['#8ED9C9', '#F5C6A5', '#C9C3F5', '#F2E29B', '#A9D4F5'] as const;
+export const COVER_PALETTE = ['#B5452E', '#5A6F8C', '#A8682A', '#6E8A3A', '#3C7A8C'] as const;
+
+// Stable palette pick: the same id always maps to the same colour.
+export const colorFromId = (id: string, palette: readonly string[]): string => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return palette[hash % palette.length];
+};

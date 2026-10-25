@@ -17,13 +17,13 @@ test('UI login with demo user works', async ({ page }) => {
   const passwordInput = page.getByLabel('Password', { exact: true });
   await expect(passwordInput).toHaveValue('password123');
 
-  // Log in button (LoginView.vue).
-  await page.getByRole('button', { name: 'Log in' }).click();
+  // Sign in button (LoginView.vue).
+  await page.getByRole('button', { name: 'Sign in' }).click();
 
   // Auth guard redirects authenticated users to /lists.
   await page.waitForURL(/\/lists$/);
   await expect(page).toHaveURL(/\/lists$/);
 
   // ShoppingListsView sets the page title to "Careto" (ShoppingListsView.vue:72-74).
-  await expect(page.getByRole('heading', { name: 'Careto' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'My lists', level: 1 })).toBeVisible();
 });

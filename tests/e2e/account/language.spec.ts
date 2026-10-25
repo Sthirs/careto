@@ -34,33 +34,33 @@ test.describe('account language selection (EN → IT via Save)', () => {
     await page.goto('/account');
 
     // Sanity: the account screen starts in English.
-    await expect(page.getByTestId('account-details')).toBeVisible();
-    await expect(page.getByText('Account Details')).toBeVisible();
-    await expect(account.languageSelect).toHaveValue('en');
+    await expect(page.getByText('Full name', { exact: true })).toBeVisible();
+    await account.expectLanguage('en');
 
     // Selecting Italiano alone must NOT translate nor save anything yet.
     await account.selectLanguage('it');
-    await expect(page.getByText('Dettagli account')).toHaveCount(0);
-    await expect(page.getByText('Account Details')).toBeVisible();
+    await account.expectLanguage('it');
+    await expect(page.getByText('Nome completo', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Full name', { exact: true })).toBeVisible();
 
     // Pressing Save persists AND applies the new locale.
     await page.getByTestId('account-save').click();
-    await expect(page.getByText('Dettagli account')).toBeVisible();
+    await expect(page.getByText('Nome completo', { exact: true })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'it');
-    await expect(account.languageSelect).toHaveValue('it');
+    await account.expectLanguage('it');
     await expect(page.getByRole('button', { name: 'Salva modifiche' })).toBeVisible();
     await expect(page.locator('#account-name')).toHaveAttribute('placeholder', 'Nome completo');
 
     // Reload — the server-side preference keeps the Italian UI.
     await page.reload();
-    await expect(page.getByText('Dettagli account')).toBeVisible();
-    await expect(account.languageSelect).toHaveValue('it');
+    await expect(page.getByText('Nome completo', { exact: true })).toBeVisible();
+    await account.expectLanguage('it');
 
     // Lists screen renders localized copy.
     await page.goto('/lists');
-    await expect(page.getByRole('button', { name: '+ Crea lista' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nuova lista' })).toBeVisible();
 
-    // Log out (Sign Out lives on the account screen), log back in —
+    // Log out (it lives on the account screen), log back in —
     // the saved preference survives the session.
     await page.goto('/account');
     await expect(page.getByRole('button', { name: 'Esci' })).toBeVisible();
@@ -72,13 +72,13 @@ test.describe('account language selection (EN → IT via Save)', () => {
     await expect(page).toHaveURL(/\/lists/, { timeout: 15000 });
 
     await page.goto('/account');
-    await expect(page.getByText('Dettagli account')).toBeVisible();
-    await expect(account.languageSelect).toHaveValue('it');
+    await expect(page.getByText('Nome completo', { exact: true })).toBeVisible();
+    await account.expectLanguage('it');
 
     // Switch back to English: select + Save (Italian button label while in IT).
     await account.selectLanguage('en');
     await page.getByRole('button', { name: 'Salva modifiche' }).click();
-    await expect(page.getByText('Account Details')).toBeVisible();
-    await expect(account.languageSelect).toHaveValue('en');
+    await expect(page.getByText('Full name', { exact: true })).toBeVisible();
+    await account.expectLanguage('en');
   });
 });

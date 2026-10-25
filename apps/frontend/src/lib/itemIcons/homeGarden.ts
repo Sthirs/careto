@@ -1,0 +1,19 @@
+// Icon paths (24x24 line style) for the `home-garden` catalog section.
+
+export const homeGardenIcons: Readonly<Record<string, string>> = {
+  'potting-soil': 'M7 6.5L8.5 3h7L17 6.5c1.5 3 1.5 10 0 14.5H7c-1.5-4.5-1.5-11.5 0-14.5z M7 6.5h10 M12 17v-4 M12 13c-2 0-3-1-3-3 2 0 3 1 3 3z M12 13c2 0 3-1 3-3-2 0-3 1-3 3z',
+  grill: 'M3 10h18a9 6 0 0 1-18 0z M5 7h14 M12 3v2 M8 16l-2 5 M16 16l2 5 M12 16v5',
+  parasol: 'M2 11a10 7 0 0 1 20 0z M12 4v17 M12 21H9 M7 11c0-4 2-7 5-7 M17 11c0-4-2-7-5-7',
+  fertilizer: 'M10.5 2h3v3h-3z M10.5 5L8 8.5V20a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V8.5L13.5 5 M9 17.5c0-3.5 2.5-5.5 6-5.5 0 3.5-2.5 5.5-6 5.5z M9 17.5l3.2-3.2',
+  pots: 'M5 9h14l-2 12H7z M4 6h16v3H4z',
+  'garden-tool': 'M12 2v9 M9 2h6 M8 13l4-2 4 2-1 5c-1 3-5 3-6 0z',
+  seeds: 'M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16a1 1 0 0 1 1 -1z M12 12v-4 M12 8c-2 0-3-1-3-3 2 0 3 1 3 3z M12 8c2 0 3-1 3-3-2 0-3 1-3 3z M9 16h.01 M12 17h.01 M15 16h.01',
+  propane: 'M7 8a5 3 0 0 1 10 0v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z M10 5V3h4v2 M7 12h10',
+  charcoal: 'M3 18l3-4 4 1 2-3 4 1 4 5z M8 10c1-2 0-3 1-5 M13 8c1-2 0-3 1-5',
+  nails: 'M5 3h4 M7 3v16l1 2 1-2V3 M15 5h4 M17 5v14l1 2 1-2V5',
+  bolts: 'M8 4l2-2h4l2 2-2 2h-4z M10 6v15 M14 6v15 M10 9l4 1 M10 12l4 1 M10 15l4 1 M10 18l4 1',
+  brush: 'M8 3h8v8H8z M8 11h8l-1 3h-6z M11 14v7h2v-7',
+  'watering-can': 'M4 9h11v11H4z M15 12l6-5 M19 5.5l3 2.5 M6 9c0-3 2-5 4-5s4 2 4 5',
+  plants: 'M6 14h12l-2 7H8z M12 14V8 M12 10c-3 0-5-2-5-5 3 0 5 2 5 5z M12 8c3 0 5-2 5-5-3 0-5 2-5 5z',
+  lawnmower: 'M4 13h13l2-3 M19 10l2-7 M4 13v4h15v-4 M5 19.5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z M14 19.5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z',
+};

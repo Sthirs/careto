@@ -203,7 +203,7 @@ test.describe('Push notifications (ADR-0020)', () => {
 
     await deliverPush({
       title: 'List invitation',
-      body: 'Alice invited you to join "Mercà de Rialto"',
+      body: 'Alice invited you to join "Marcà de Rialto"',
       url: '/lists/e2e-fake-id',
     });
 
@@ -216,7 +216,7 @@ test.describe('Push notifications (ADR-0020)', () => {
     });
 
     expect(notification.title).toBe('List invitation');
-    expect(notification.body).toContain('Mercà de Rialto');
+    expect(notification.body).toContain('Marcà de Rialto');
     expect(notification.url).toBe('/lists/e2e-fake-id');
   });
 
