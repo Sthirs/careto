@@ -17,7 +17,7 @@ test.describe('Login UI — visual fidelity', () => {
     }
 
     // Header
-    await expect(page.locator('img[src="/careto-trolley.svg"]')).toBeVisible();
+    await expect(page.locator('img[src="/careto.svg"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Careto', level: 1 })).toBeVisible();
     await expect(page.getByText('The grocery list that fills itself')).toBeVisible();
 

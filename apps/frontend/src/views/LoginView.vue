@@ -71,7 +71,7 @@ onMounted(async () => {
   <main class="mx-auto flex min-h-dvh w-full max-w-[390px] flex-col px-6 pt-4 pb-7">
     <div class="flex flex-1 flex-col items-center justify-center gap-3.5 py-8 text-center">
       <div class="flex h-37 w-37 items-center justify-center rounded-full bg-[#F3EBDD] shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
-        <img src="/careto-trolley.svg" alt="Careto logo" class="h-31 w-31" />
+        <img src="/careto.svg" alt="Careto logo" class="h-31 w-31" />
       </div>
       <h1 class="mt-1.5 text-5xl leading-none font-black tracking-[-0.02em] text-white">Careto</h1>
       <p class="text-[17px] font-bold text-text-secondary">{{ t('login.subtitle') }}</p>
