@@ -16,7 +16,7 @@ We will implement dual authentication:
 
 2. **OAuth2/OIDC auth**: a generic OIDC provider backed by `openid-client` v6, implementing Authorization Code + PKCE with S256 code challenge. The provider is registered in a module-singleton `providerRegistry` (keyed by provider name). Discovery happens at boot via `initOAuthProviders()`; if discovery fails, the provider is not registered and OAuth routes return 503 until restart — the backend never crashes on IdP misconfiguration. A `UserIdentity` entity (table `user_identities`, unique `(provider, subject)`) links OAuth subjects to local users by email. Dex is deployed as an optional in-cluster IdP for development and testing (Helm toggle `dex.enabled`).
 
-3. **Local auth toggles**: `AUTH_LOCAL_LOGIN_ENABLED` and `AUTH_LOCAL_REGISTRATION_ENABLED` environment variables (default `"true"`) gate the `/api/auth/login` and `/api/auth/register` endpoints via `requireLocalAuthEnabled` middleware (returns 403 when disabled). The `/api/auth/config` endpoint exposes the toggle state to the frontend so the UI can hide disabled forms.
+3. **Local auth toggles**: `AUTH_LOCAL_LOGIN_ENABLED` (default `"true"`) and `AUTH_LOCAL_REGISTRATION_ENABLED` (default `"false"`: enabled only when set to exactly `"true"`; the Helm chart's `devMode` sets it to `"true"` because the integration and e2e suites register users through the API) environment variables gate the `/api/auth/login` and `/api/auth/register` endpoints via `requireLocalAuthEnabled` middleware (returns 403 when disabled). The `/api/auth/config` endpoint exposes the toggle state to the frontend so the UI can hide disabled forms.
 
 ## Alternatives considered
 
@@ -40,6 +40,7 @@ We will implement dual authentication:
 - `apps/frontend/src/stores/auth.ts` — token stored in `localStorage` key `careto.auth.token`.
 - OIDC + PKCE: <https://datatracker.ietf.org/doc/html/rfc7636>
 - openid-client v6: <https://github.com/panva/openid-client>
+- Sudhodanan & Paverd, "Pre-hijacked accounts" (USENIX Security 2022): <https://www.usenix.org/conference/usenixsecurity22/presentation/sudhodanan> — informed disabling local registration by default.
 
 ## Consequences
 
@@ -49,7 +50,10 @@ We will implement dual authentication:
 - Negative / trade-offs: JWT in `localStorage` is vulnerable to XSS — a script injection can exfiltrate the token; httpOnly cookies would be safer but complicate PWA/service-worker flows.
 - Negative / trade-offs: 7-day tokens with no refresh rotation means a stolen token is valid for a week; no revocation mechanism exists.
 - Negative / trade-offs: link-by-email means a user who changes their email at the IdP gets a new local account instead of linking to the existing one.
+- Negative / trade-offs: local registration never verifies email ownership. With link-by-email and email-keyed invitation attachment (shopping list invitation decision), an open registration endpoint allows account pre-hijacking (an attacker registers a victim's email; the victim's later OAuth sign-in links to the attacker's account, which keeps its password) and invitation hijacking. Registration is therefore off by default; deployments that enable it accept both risks.
+- Positive: deployments without an IdP can still enable local registration with `AUTH_LOCAL_REGISTRATION_ENABLED: "true"`.
 - Follow-ups: Implement refresh token rotation before production use.
 - Follow-ups: Evaluate httpOnly cookie + CSRF token for improved XSS resistance.
 - Follow-ups: Add a user-facing account-linking UI so a local user can connect an OAuth identity.
+- Follow-ups: Email verification for local registration (or verified-email gating of OAuth linking and invitation attachment) would allow registration to be re-enabled safely.
 - Follow-ups: Document the XSS risk of localStorage token storage and the mitigation strategy.

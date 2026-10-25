@@ -25,7 +25,7 @@ const envSchema = z.object({
   AUTH_LOCAL_REGISTRATION_ENABLED: z
     .string()
     .optional()
-    .transform((value) => value !== 'false'),
+    .transform((value) => value === 'true'),
   SEED_ON_STARTUP: z
     .string()
     .optional()

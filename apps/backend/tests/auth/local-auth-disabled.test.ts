@@ -24,7 +24,21 @@ describe('local auth disabled', () => {
     expect(response.body.code).toBe('local_registration_disabled');
   });
 
+  it('POST /api/auth/register returns 403 when registration is unset (off by default)', async () => {
+    vi.stubEnv('AUTH_LOCAL_REGISTRATION_ENABLED', undefined);
+    const { createApp } = await import('../../src/app.js');
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'test@example.com', password: 'pass', displayName: 'Test' });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe('local_registration_disabled');
+  });
+
   it('POST /api/auth/register proceeds normally when registration is enabled', async () => {
+    vi.stubEnv('AUTH_LOCAL_REGISTRATION_ENABLED', 'true');
     const { createApp } = await import('../../src/app.js');
     const app = createApp();
 

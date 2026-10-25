@@ -32,10 +32,10 @@ backend:
   env:
     PORT: "3000"
     NODE_ENV: production
-    DB_SYNC: "false"
+    DB_SYNC: "true"
     SEED_ON_STARTUP: "false"
     AUTH_LOCAL_LOGIN_ENABLED: "true"
-    AUTH_LOCAL_REGISTRATION_ENABLED: "true"
+    AUTH_LOCAL_REGISTRATION_ENABLED: "false"
     CORS_ORIGIN: https://careto.example.com
     FRONTEND_URL: ""
     RATE_LIMIT_WINDOW_MS: "300000"

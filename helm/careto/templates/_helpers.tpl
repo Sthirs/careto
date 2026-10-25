@@ -44,6 +44,9 @@ dev
 {{- if eq $key "NODE_ENV" -}}development
 {{- else if eq $key "DB_SYNC" -}}true
 {{- else if eq $key "SEED_ON_STARTUP" -}}true
+{{- /* ADR-0005: registration is off by default, but dev and CI register
+     throwaway users through the API (integration and e2e suites). */ -}}
+{{- else if eq $key "AUTH_LOCAL_REGISTRATION_ENABLED" -}}true
 {{- else if eq $key "JWT_SECRET" -}}change-me-dev-secret
 {{- else if eq $key "FRONTEND_URL" -}}{{ printf "http://%s" $root.Values.ingress.host }}
 {{- else if eq $key "RATE_LIMIT_LIMIT" -}}1000000

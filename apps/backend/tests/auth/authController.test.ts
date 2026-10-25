@@ -51,6 +51,12 @@ vi.mock('../../src/services/imageService', async (importOriginal) => {
   };
 });
 
+// Registration is off when unset (ADR-0005); config/env.ts parses at import
+// time, so enable it before the app module graph loads.
+vi.hoisted(() => {
+  process.env.AUTH_LOCAL_REGISTRATION_ENABLED = 'true';
+});
+
 import { createApp } from '../../src/app';
 import { AuthService } from '../../src/services/authService';
 import {

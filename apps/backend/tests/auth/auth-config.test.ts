@@ -4,14 +4,14 @@ import { describe, it, expect } from 'vitest';
 import { createApp } from '../../src/app';
 
 describe('GET /api/auth/config', () => {
-  it('returns localLoginEnabled=true and localRegistrationEnabled=true by default', async () => {
+  it('returns localLoginEnabled=true and localRegistrationEnabled=false by default', async () => {
     const app = createApp();
     const response = await request(app).get('/api/auth/config');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       localLoginEnabled: true,
-      localRegistrationEnabled: true,
+      localRegistrationEnabled: false,
     });
   });
 

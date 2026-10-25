@@ -130,8 +130,7 @@ kubectl -n careto rollout status deployment/careto-frontend --timeout=180s
   `localhost:5173` directly.
 - Vite HMR is configured for the ingress host so the frontend keeps working
   behind a Telepresence intercept.
-- TypeORM uses schema synchronization in development (`DB_SYNC=true`); there are
-  no migrations.
+- TypeORM uses schema synchronization (`DB_SYNC=true`); there are no migrations.
 - Seed data is created by the in-cluster backend startup path.
 
 ## Configuration
@@ -141,10 +140,10 @@ kubectl -n careto rollout status deployment/careto-frontend --timeout=180s
 Two environment variables control whether local (password-based) auth is
 available. OAuth sign-in is unaffected by these flags.
 
-| Variable                          | Default  | Effect when set to `"false"`                                           |
-|-----------------------------------|----------|------------------------------------------------------------------------|
-| `AUTH_LOCAL_LOGIN_ENABLED`        | `"true"` | `POST /api/auth/login` returns 403; the login form is hidden in the UI |
-| `AUTH_LOCAL_REGISTRATION_ENABLED` | `"true"` | `POST /api/auth/register` returns 403                                  |
+| Variable                          | Default   | Effect when `"false"`                                                  |
+|-----------------------------------|-----------|------------------------------------------------------------------------|
+| `AUTH_LOCAL_LOGIN_ENABLED`        | `"true"`  | `POST /api/auth/login` returns 403; the login form is hidden in the UI |
+| `AUTH_LOCAL_REGISTRATION_ENABLED` | `"false"` | `POST /api/auth/register` returns 403; devMode sets it to `"true"`     |
 
 ### Rate limiting
 
