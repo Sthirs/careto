@@ -1,0 +1,562 @@
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+
+import {
+  STORED_BUILD_KEY,
+  RELOAD_GUARD_KEY,
+  MIN_CHECK_INTERVAL_MS,
+  decideVersionAction,
+  checkForNewBuild,
+  shouldRunCheck,
+  createBrowserPorts,
+  type AppVersionPorts,
+  type VersionAction,
+} from '@/lib/appVersion';
+
+describe('decideVersionAction (pure)', () => {
+  it('returns skip when remote is null', () => {
+    expect(decideVersionAction('abc', null)).toBe('skip');
+    expect(decideVersionAction(null, null)).toBe('skip');
+  });
+
+  it('returns store when stored === remote', () => {
+    expect(decideVersionAction('abc', 'abc')).toBe('store');
+    expect(decideVersionAction(null, null)).toBe('skip'); // covered above, but explicit
+  });
+
+  it('returns purge-and-reload when stored !== remote', () => {
+    expect(decideVersionAction('old', 'new')).toBe('purge-and-reload');
+    expect(decideVersionAction(null, 'new')).toBe('purge-and-reload');
+    expect(decideVersionAction('old', 'different')).toBe('purge-and-reload');
+  });
+});
+
+describe('shouldRunCheck (throttle)', () => {
+  it('returns true when lastMs is undefined (first run)', () => {
+    expect(shouldRunCheck(1000, undefined)).toBe(true);
+  });
+
+  it('returns true when delta >= MIN_CHECK_INTERVAL_MS', () => {
+    expect(shouldRunCheck(30_000, 0)).toBe(true);
+    expect(shouldRunCheck(60_000, 29_999)).toBe(true);
+    expect(shouldRunCheck(100_000, 50_000)).toBe(true);
+  });
+
+  it('returns false when delta < MIN_CHECK_INTERVAL_MS', () => {
+    expect(shouldRunCheck(29_999, 0)).toBe(false);
+    expect(shouldRunCheck(30_000, 1)).toBe(false);
+    expect(shouldRunCheck(59_999, 30_000)).toBe(false);
+  });
+});
+
+describe('checkForNewBuild (orchestrator)', () => {
+  const makePorts = (overrides: Partial<AppVersionPorts> = {}): AppVersionPorts => ({
+    fetchRemoteBuildId: vi.fn().mockResolvedValue('remote-123'),
+    getStoredBuildId: vi.fn().mockReturnValue('stored-123'),
+    storeBuildId: vi.fn(),
+    hasReloadGuard: vi.fn().mockReturnValue(false),
+    armReloadGuard: vi.fn(),
+    clearReloadGuard: vi.fn(),
+    purgeCachesAndWorkers: vi.fn().mockResolvedValue(undefined),
+    reload: vi.fn(),
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetchRemoteBuildId returns null → skip, zero side effects', async () => {
+    const ports = makePorts({ fetchRemoteBuildId: vi.fn().mockResolvedValue(null) });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip');
+    expect(ports.getStoredBuildId).not.toHaveBeenCalled();
+    expect(ports.storeBuildId).not.toHaveBeenCalled();
+    expect(ports.purgeCachesAndWorkers).not.toHaveBeenCalled();
+    expect(ports.reload).not.toHaveBeenCalled();
+    expect(ports.armReloadGuard).not.toHaveBeenCalled();
+    expect(ports.clearReloadGuard).not.toHaveBeenCalled();
+  });
+
+  it('fetchRemoteBuildId throws → skip, zero side effects', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockRejectedValue(new Error('network down')),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip');
+    expect(ports.getStoredBuildId).not.toHaveBeenCalled();
+    expect(ports.storeBuildId).not.toHaveBeenCalled();
+    expect(ports.purgeCachesAndWorkers).not.toHaveBeenCalled();
+    expect(ports.reload).not.toHaveBeenCalled();
+  });
+
+  it('stored === remote → store, clears guard, no purge/reload', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('same-id'),
+      getStoredBuildId: vi.fn().mockReturnValue('same-id'),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('store');
+    expect(ports.clearReloadGuard).toHaveBeenCalledTimes(1);
+    expect(ports.purgeCachesAndWorkers).not.toHaveBeenCalled();
+    expect(ports.reload).not.toHaveBeenCalled();
+    expect(ports.armReloadGuard).not.toHaveBeenCalled();
+    expect(ports.storeBuildId).not.toHaveBeenCalled(); // already stored
+  });
+
+  it('mismatch, no guard → purge-and-reload: purges, stores, arms guard, reloads exactly once', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('new-build'),
+      getStoredBuildId: vi.fn().mockReturnValue('old-build'),
+      hasReloadGuard: vi.fn().mockReturnValue(false),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('purge-and-reload');
+    expect(ports.purgeCachesAndWorkers).toHaveBeenCalledTimes(1);
+    expect(ports.storeBuildId).toHaveBeenCalledWith('new-build');
+    expect(ports.armReloadGuard).toHaveBeenCalledTimes(1);
+    expect(ports.reload).toHaveBeenCalledTimes(1);
+    expect(ports.clearReloadGuard).not.toHaveBeenCalled();
+  });
+
+  it('mismatch, guard armed → skip-healed: stores new id, no purge/reload', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('new-build'),
+      getStoredBuildId: vi.fn().mockReturnValue('old-build'),
+      hasReloadGuard: vi.fn().mockReturnValue(true),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip-healed');
+    expect(ports.storeBuildId).toHaveBeenCalledWith('new-build');
+    expect(ports.purgeCachesAndWorkers).not.toHaveBeenCalled();
+    expect(ports.reload).not.toHaveBeenCalled();
+    expect(ports.armReloadGuard).not.toHaveBeenCalled();
+    expect(ports.clearReloadGuard).not.toHaveBeenCalled();
+  });
+
+  it('purgeCachesAndWorkers throws → skip, no reload', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('new-build'),
+      getStoredBuildId: vi.fn().mockReturnValue('old-build'),
+      hasReloadGuard: vi.fn().mockReturnValue(false),
+      purgeCachesAndWorkers: vi.fn().mockRejectedValue(new Error('cache delete failed')),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip');
+    expect(ports.reload).not.toHaveBeenCalled();
+    expect(ports.armReloadGuard).not.toHaveBeenCalled();
+  });
+
+  it('storeBuildId throws → skip, no reload', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('new-build'),
+      getStoredBuildId: vi.fn().mockReturnValue('old-build'),
+      hasReloadGuard: vi.fn().mockReturnValue(false),
+      storeBuildId: vi.fn().mockImplementation(() => {
+        throw new Error('quota exceeded');
+      }),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip');
+    expect(ports.reload).not.toHaveBeenCalled();
+  });
+
+  it('armReloadGuard throws → skip, no reload', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('new-build'),
+      getStoredBuildId: vi.fn().mockReturnValue('old-build'),
+      hasReloadGuard: vi.fn().mockReturnValue(false),
+      armReloadGuard: vi.fn().mockImplementation(() => {
+        throw new Error('sessionStorage disabled');
+      }),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip');
+    expect(ports.reload).not.toHaveBeenCalled();
+  });
+
+  it('reload throws → skip (error swallowed)', async () => {
+    const ports = makePorts({
+      fetchRemoteBuildId: vi.fn().mockResolvedValue('new-build'),
+      getStoredBuildId: vi.fn().mockReturnValue('old-build'),
+      hasReloadGuard: vi.fn().mockReturnValue(false),
+      reload: vi.fn().mockImplementation(() => {
+        throw new Error('location.reload blocked');
+      }),
+    });
+    const action = await checkForNewBuild(ports);
+    expect(action).toBe('skip');
+  });
+});
+
+describe('createBrowserPorts (factory)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    // Reset globals to clean state. Vitest 5 + happy-dom wire these up as
+    // getter-only accessors on globalThis, so a plain `globalThis.x = y`
+    // throws ("has only a getter") — vi.stubGlobal replaces the descriptor
+    // instead of invoking a (nonexistent) setter.
+    vi.stubGlobal('localStorage', undefined);
+    vi.stubGlobal('sessionStorage', undefined);
+    vi.stubGlobal('caches', undefined);
+    vi.stubGlobal('navigator', undefined);
+    vi.stubGlobal('window', undefined);
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fetchRemoteBuildId: ok response with buildId → returns id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ buildId: 'build-456' }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const ports = createBrowserPorts();
+    const id = await ports.fetchRemoteBuildId();
+    expect(id).toBe('build-456');
+    expect(mockFetch).toHaveBeenCalledWith('/app-version.json', { cache: 'no-store' });
+  });
+
+  it('fetchRemoteBuildId: non-ok response → null', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const ports = createBrowserPorts();
+    const id = await ports.fetchRemoteBuildId();
+    expect(id).toBeNull();
+  });
+
+  it('fetchRemoteBuildId: fetch throws → null', async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const ports = createBrowserPorts();
+    const id = await ports.fetchRemoteBuildId();
+    expect(id).toBeNull();
+  });
+
+  it('fetchRemoteBuildId: missing buildId in JSON → null', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ otherField: 'value' }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const ports = createBrowserPorts();
+    const id = await ports.fetchRemoteBuildId();
+    expect(id).toBeNull();
+  });
+
+  it('getStoredBuildId / storeBuildId use localStorage with STORED_BUILD_KEY', () => {
+    const store = new Map<string, string>();
+    const localStorage = {
+      getItem: vi.fn((k: string) => store.get(k) ?? null),
+      setItem: vi.fn((k: string, v: string) => store.set(k, v)),
+      removeItem: vi.fn((k: string) => store.delete(k)),
+    };
+    vi.stubGlobal('localStorage', localStorage as unknown as Storage);
+
+    const ports = createBrowserPorts();
+    expect(ports.getStoredBuildId()).toBeNull();
+
+    ports.storeBuildId('build-789');
+    expect(localStorage.setItem).toHaveBeenCalledWith(STORED_BUILD_KEY, 'build-789');
+    expect(ports.getStoredBuildId()).toBe('build-789');
+    expect(localStorage.getItem).toHaveBeenCalledWith(STORED_BUILD_KEY);
+  });
+
+  it('hasReloadGuard / armReloadGuard / clearReloadGuard use sessionStorage with RELOAD_GUARD_KEY', () => {
+    const store = new Map<string, string>();
+    const sessionStorage = {
+      getItem: vi.fn((k: string) => store.get(k) ?? null),
+      setItem: vi.fn((k: string, v: string) => store.set(k, v)),
+      removeItem: vi.fn((k: string) => store.delete(k)),
+    };
+    vi.stubGlobal('sessionStorage', sessionStorage as unknown as Storage);
+
+    const ports = createBrowserPorts();
+    expect(ports.hasReloadGuard()).toBe(false);
+
+    ports.armReloadGuard();
+    expect(sessionStorage.setItem).toHaveBeenCalledWith(RELOAD_GUARD_KEY, '1');
+    expect(ports.hasReloadGuard()).toBe(true);
+
+    ports.clearReloadGuard();
+    expect(sessionStorage.removeItem).toHaveBeenCalledWith(RELOAD_GUARD_KEY);
+    expect(ports.hasReloadGuard()).toBe(false);
+  });
+
+  it('purgeCachesAndWorkers deletes all caches and unregisters all SWs', async () => {
+    const cacheKeys = ['cache-v1', 'cache-v2'];
+    const mockCaches = {
+      keys: vi.fn().mockResolvedValue(cacheKeys),
+      delete: vi.fn().mockResolvedValue(true),
+    };
+    vi.stubGlobal('caches', mockCaches as unknown as CacheStorage);
+
+    const mockRegistrations = [
+      { unregister: vi.fn().mockResolvedValue(true) },
+      { unregister: vi.fn().mockResolvedValue(true) },
+    ];
+    const mockNavigator = {
+      serviceWorker: {
+        getRegistrations: vi.fn().mockResolvedValue(mockRegistrations),
+      },
+    };
+    vi.stubGlobal('navigator', mockNavigator as unknown as Navigator);
+
+    const ports = createBrowserPorts();
+    await ports.purgeCachesAndWorkers();
+
+    expect(mockCaches.keys).toHaveBeenCalledTimes(1);
+    expect(mockCaches.delete).toHaveBeenCalledTimes(2);
+    expect(mockCaches.delete).toHaveBeenCalledWith('cache-v1');
+    expect(mockCaches.delete).toHaveBeenCalledWith('cache-v2');
+    expect(mockNavigator.serviceWorker.getRegistrations).toHaveBeenCalledTimes(1);
+    expect(mockRegistrations[0].unregister).toHaveBeenCalledTimes(1);
+    expect(mockRegistrations[1].unregister).toHaveBeenCalledTimes(1);
+  });
+
+  it('purgeCachesAndWorkers does NOT touch cookies or the auth token', async () => {
+    // ADR-0016 promises the deploy purge keeps the user signed in, and ADR-0018
+    // now puts the long-lived refresh credential in a cookie. If the purge ever
+    // grew to clear cookies or localStorage, every deploy would sign everyone
+    // out — so lock the boundary here rather than discovering it in production.
+    const mockCaches = {
+      keys: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(true),
+    };
+    vi.stubGlobal('caches', mockCaches as unknown as CacheStorage);
+    vi.stubGlobal('navigator', {
+      serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) },
+    } as unknown as Navigator);
+
+    const documentStub = { cookie: 'careto.auth.refresh=secret' };
+    vi.stubGlobal('document', documentStub as unknown as Document);
+    const removeItem = vi.fn();
+    vi.stubGlobal('localStorage', {
+      removeItem,
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+    } as unknown as Storage);
+
+    const ports = createBrowserPorts();
+    await ports.purgeCachesAndWorkers();
+
+    expect(documentStub.cookie).toBe('careto.auth.refresh=secret');
+    expect(removeItem).not.toHaveBeenCalled();
+  });
+
+  it('purgeCachesAndWorkers: caches API missing → no throw', async () => {
+    // No caches on globalThis
+    vi.stubGlobal('caches', undefined);
+    const mockNavigator = { serviceWorker: undefined };
+    vi.stubGlobal('navigator', mockNavigator as unknown as Navigator);
+
+    const ports = createBrowserPorts();
+    await expect(ports.purgeCachesAndWorkers()).resolves.toBeUndefined();
+  });
+
+  it('purgeCachesAndWorkers: serviceWorker missing → no throw', async () => {
+    const mockCaches = {
+      keys: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(true),
+    };
+    vi.stubGlobal('caches', mockCaches as unknown as CacheStorage);
+    const mockNavigator = { serviceWorker: undefined };
+    vi.stubGlobal('navigator', mockNavigator as unknown as Navigator);
+
+    const ports = createBrowserPorts();
+    await expect(ports.purgeCachesAndWorkers()).resolves.toBeUndefined();
+  });
+
+  it('reload calls window.location.reload()', () => {
+    const mockReload = vi.fn();
+    const mockWindow = { location: { reload: mockReload } };
+    vi.stubGlobal('window', mockWindow as unknown as Window & typeof globalThis);
+
+    const ports = createBrowserPorts();
+    ports.reload();
+    expect(mockReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('reload: window missing → no throw', () => {
+    vi.stubGlobal('window', undefined);
+    const ports = createBrowserPorts();
+    expect(() => ports.reload()).not.toThrow();
+  });
+
+  it('storage errors (private mode) are caught and return null/void', () => {
+    const throwingStorage = {
+      getItem: vi.fn(() => {
+        throw new Error('private mode');
+      }),
+      setItem: vi.fn(() => {
+        throw new Error('private mode');
+      }),
+      removeItem: vi.fn(() => {
+        throw new Error('private mode');
+      }),
+    };
+    vi.stubGlobal('localStorage', throwingStorage as unknown as Storage);
+    vi.stubGlobal('sessionStorage', throwingStorage as unknown as Storage);
+
+    const ports = createBrowserPorts();
+    expect(ports.getStoredBuildId()).toBeNull();
+    expect(() => ports.storeBuildId('x')).not.toThrow();
+    expect(ports.hasReloadGuard()).toBe(false);
+    expect(() => ports.armReloadGuard()).not.toThrow();
+    expect(() => ports.clearReloadGuard()).not.toThrow();
+  });
+});
+
+describe('Storage key isolation — careto.auth.token and careto.lang never touched', () => {
+  it('createBrowserPorts only accesses STORED_BUILD_KEY and RELOAD_GUARD_KEY', () => {
+    const localStorageCalls: string[] = [];
+    const sessionStorageCalls: string[] = [];
+
+    const localStorage = {
+      getItem: vi.fn((k: string) => {
+        localStorageCalls.push(k);
+        return null;
+      }),
+      setItem: vi.fn((k: string) => {
+        localStorageCalls.push(k);
+      }),
+      removeItem: vi.fn((k: string) => {
+        localStorageCalls.push(k);
+      }),
+    };
+    const sessionStorage = {
+      getItem: vi.fn((k: string) => {
+        sessionStorageCalls.push(k);
+        return null;
+      }),
+      setItem: vi.fn((k: string) => {
+        sessionStorageCalls.push(k);
+      }),
+      removeItem: vi.fn((k: string) => {
+        sessionStorageCalls.push(k);
+      }),
+    };
+    vi.stubGlobal('localStorage', localStorage as unknown as Storage);
+    vi.stubGlobal('sessionStorage', sessionStorage as unknown as Storage);
+
+    const ports = createBrowserPorts();
+
+    // Exercise all storage methods
+    ports.getStoredBuildId();
+    ports.storeBuildId('test-id');
+    ports.hasReloadGuard();
+    ports.armReloadGuard();
+    ports.clearReloadGuard();
+
+    // Verify only our keys were used
+    expect(localStorageCalls).toEqual([
+      STORED_BUILD_KEY, // getStoredBuildId
+      STORED_BUILD_KEY, // storeBuildId
+    ]);
+    expect(sessionStorageCalls).toEqual([
+      RELOAD_GUARD_KEY, // hasReloadGuard
+      RELOAD_GUARD_KEY, // armReloadGuard
+      RELOAD_GUARD_KEY, // clearReloadGuard
+    ]);
+
+    // Explicitly assert forbidden keys never appear
+    const forbiddenKeys = ['careto.auth.token', 'careto.lang'];
+    for (const key of forbiddenKeys) {
+      expect(localStorageCalls).not.toContain(key);
+      expect(sessionStorageCalls).not.toContain(key);
+    }
+  });
+
+  it('checkForNewBuild with browser ports never touches forbidden keys', async () => {
+    const localStorageCalls: string[] = [];
+    const sessionStorageCalls: string[] = [];
+
+    const localStorage = {
+      getItem: vi.fn((k: string) => {
+        localStorageCalls.push(k);
+        return 'old-build';
+      }),
+      setItem: vi.fn((k: string) => {
+        localStorageCalls.push(k);
+      }),
+      removeItem: vi.fn((k: string) => {
+        localStorageCalls.push(k);
+      }),
+    };
+    const sessionStorage = {
+      getItem: vi.fn((k: string) => {
+        sessionStorageCalls.push(k);
+        return null;
+      }),
+      setItem: vi.fn((k: string) => {
+        sessionStorageCalls.push(k);
+      }),
+      removeItem: vi.fn((k: string) => {
+        sessionStorageCalls.push(k);
+      }),
+    };
+    vi.stubGlobal('localStorage', localStorage as unknown as Storage);
+    vi.stubGlobal('sessionStorage', sessionStorage as unknown as Storage);
+
+    // Mock fetch, caches, SW, window
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ buildId: 'new-build' }),
+      }),
+    );
+    vi.stubGlobal('caches', {
+      keys: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(true),
+    } as unknown as CacheStorage);
+    vi.stubGlobal('navigator', {
+      serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) },
+    } as unknown as Navigator);
+    vi.stubGlobal('window', {
+      location: { reload: vi.fn() },
+    } as unknown as Window & typeof globalThis);
+
+    const ports = createBrowserPorts();
+    await checkForNewBuild(ports);
+
+    // Only our keys
+    expect(localStorageCalls).toEqual([STORED_BUILD_KEY, STORED_BUILD_KEY]);
+    expect(sessionStorageCalls).toEqual([RELOAD_GUARD_KEY, RELOAD_GUARD_KEY]);
+
+    const forbiddenKeys = ['careto.auth.token', 'careto.lang'];
+    for (const key of forbiddenKeys) {
+      expect(localStorageCalls).not.toContain(key);
+      expect(sessionStorageCalls).not.toContain(key);
+    }
+  });
+});
+
+describe('Constants exported correctly', () => {
+  it('STORED_BUILD_KEY has correct value', () => {
+    expect(STORED_BUILD_KEY).toBe('careto.app.buildId');
+  });
+
+  it('RELOAD_GUARD_KEY has correct value', () => {
+    expect(RELOAD_GUARD_KEY).toBe('careto.app.reloadGuard');
+  });
+
+  it('MIN_CHECK_INTERVAL_MS is 30_000', () => {
+    expect(MIN_CHECK_INTERVAL_MS).toBe(30_000);
+  });
+
+  it('VersionAction type includes all four variants', () => {
+    const actions: VersionAction[] = [
+      'store',
+      'purge-and-reload',
+      'skip-healed',
+      'skip',
+    ];
+    expect(actions).toHaveLength(4);
+  });
+});

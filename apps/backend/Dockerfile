@@ -1,0 +1,28 @@
+FROM node:26.12.1-alpine3.23@sha256:bc2b334006f15c7167bbeb2f08f28c2df883f7594a0470e04454ebe7560cfe68 AS build
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+COPY apps/frontend/package.json ./apps/frontend/package.json
+COPY apps/backend/package.json ./apps/backend/package.json
+RUN npm ci --workspace @careto/backend --ignore-scripts
+
+COPY apps ./apps
+RUN npm run build --workspace @careto/backend
+
+FROM node:26.12.1-alpine3.23@sha256:bc2b334006f15c7167bbeb2f08f28c2df883f7594a0470e04454ebe7560cfe68
+WORKDIR /app
+
+COPY --chown=1001:1001 package.json package-lock.json* ./
+COPY --chown=1001:1001 apps/frontend/package.json ./apps/frontend/package.json
+COPY --chown=1001:1001 apps/backend/package.json ./apps/backend/package.json
+RUN npm ci --omit=dev --workspace @careto/backend --ignore-scripts
+
+COPY --from=build --chown=1001:1001 /app/apps/backend/dist ./apps/backend/dist
+
+# Create and use non-root user
+RUN addgroup -g 1001 -S app && adduser -S app -u 1001
+USER app
+
+WORKDIR /app/apps/backend
+ENV NODE_ENV=production
+CMD ["node", "dist/src/index.js"]
