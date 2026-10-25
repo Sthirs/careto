@@ -87,26 +87,35 @@ export const en = {
   },
 
   shoppingListDetail: {
-    // Page title — composed with the list name, e.g. "Home Settings".
-    settingsTitleSuffix: '{name} Settings',
     loading: 'Loading list...',
     loadFailed: 'We could not load this list.',
     backToShoppingLists: 'Back to lists',
-    toggleSettings: 'Toggle settings',
-    settings: 'Settings',
     empty: 'Nothing here yet.',
   },
 
+  listSections: {
+    // aria-label of the bottom tab bar shared by every list section.
+    navAria: 'List sections',
+    list: 'List',
+    dishes: 'Dishes',
+    week: 'Week',
+    settings: 'Settings',
+    // Placeholder body of the sections that are not built yet.
+    comingSoon: 'Coming soon.',
+  },
+
   shoppingListSettings: {
-    backToShoppingList: 'Back to list',
+    title: 'Settings',
     loading: 'Loading settings...',
-    shoppingListNameLabel: 'LIST NAME',
-    addMembersLabel: 'ADD MEMBERS',
-    emailPlaceholder: "user{'@'}example.com",
-    add: 'ADD',
-    membersLabel: 'MEMBERS ({count})',
-    youLabel: 'You',
-    pendingInvitationsLabel: 'PENDING INVITATIONS',
+    shoppingListNameLabel: 'List name',
+    membersHeading: 'Members',
+    addMemberLabel: 'Add member',
+    emailPlaceholder: "name{'@'}email.com",
+    add: 'Add',
+    // Current user's row in the members list, e.g. "Mattia Rossi (you)".
+    youSuffix: '{name} (you)',
+    // Name line of a pending invitation row (the invitee's name stays hidden).
+    invitationSent: 'Invitation sent',
     save: 'Save',
     shoppingListNameEmpty: 'List name cannot be empty.',
     updateNameError: 'Could not update the list name.',
@@ -114,8 +123,8 @@ export const en = {
     addMemberError: 'Could not add member.',
     removeMemberError: 'Could not remove {name}.',
     cancelInvitationError: 'Could not cancel invitation for {email}.',
-    removeMemberAria: 'Remove member',
-    cancelInvitationAria: 'Cancel invitation',
+    removeMemberAria: 'Remove {name} from the list',
+    cancelInvitationAria: 'Cancel invitation to {email}',
     changeImage: 'Change image',
     changeImageErrorInvalid: 'Please select a valid image file (JPEG, PNG, or WebP).',
     changeImageErrorTooLarge: 'Image must be 5 MB or smaller.',
@@ -125,21 +134,22 @@ export const en = {
 
   account: {
     title: 'Account',
-    accountDetails: 'Account Details',
     fullName: 'Full name',
     fullNamePlaceholder: 'Full name',
-    emailAddress: 'Email address',
-    saveChanges: 'Save Changes',
+    email: 'Email',
+    // Helper under the read-only email field.
+    emailManaged: 'Managed by your sign-in provider',
+    saveChanges: 'Save changes',
     saveError: 'Could not save your changes. Please try again.',
-    signOut: 'Sign Out',
-    signOutAria: 'Sign out',
-    backToShoppingLists: 'Back to lists',
+    logOut: 'Log out',
+    profilePhotoAria: 'Your profile photo',
     changePhoto: 'Change photo',
     changePhotoErrorInvalid: 'Please select a valid image file (JPEG, PNG, or WebP).',
     changePhotoErrorTooLarge: 'Image must be 5 MB or smaller.',
     changePhotoErrorGeneric: 'Could not upload the photo. Please try again.',
     photoUploading: 'Uploading photo…',
-    versionLabel: 'Version',
+    // Footer line, e.g. "Careto · version 1.0.0".
+    versionLine: 'Careto · version {version}',
   },
 
   dateTimePicker: {

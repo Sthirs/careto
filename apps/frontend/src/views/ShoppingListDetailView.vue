@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import TopbarBackButton from '@/components/list-detail/TopbarBackButton.vue';
-import TopbarSettingsButtons from '@/components/list-detail/TopbarSettingsButtons.vue';
+import AccountAvatarLink from '@/components/AccountAvatarLink.vue';
+import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
+import ScreenHeader from '@/components/ScreenHeader.vue';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
-import { currentPageTitle } from '@/router';
 
 import type { ShoppingListDetail } from '@/types/shoppingList';
 
@@ -19,6 +19,8 @@ const router = useRouter();
 const shoppingList = ref<ShoppingListDetail | null>(null);
 const isLoading = ref(true);
 const errorMessage = ref('');
+// Seeded from history state so the header has a title before the fetch lands.
+const title = ref<string>(history.state?.shoppingListName ? String(history.state.shoppingListName) : '');
 
 const shoppingListId = computed(() => route.params.id as string);
 
@@ -31,7 +33,7 @@ const loadShoppingList = async () => {
       `/lists/${shoppingListId.value}`,
     );
     shoppingList.value = data.shoppingList;
-    currentPageTitle.value = data.shoppingList.name;
+    title.value = data.shoppingList.name;
   } catch {
     errorMessage.value = t('shoppingListDetail.loadFailed');
   } finally {
@@ -39,62 +41,45 @@ const loadShoppingList = async () => {
   }
 };
 
+// Every list section goes back to My lists (ADR-0022).
 const goBack = () => {
   goBackTo(router, { name: 'shoppingLists' });
 };
 
-onMounted(() => {
-  if (history.state.shoppingListName) {
-    currentPageTitle.value = String(history.state.shoppingListName);
-  }
-  loadShoppingList();
-});
-
-onBeforeUnmount(() => {
-  currentPageTitle.value = null;
-});
+onMounted(loadShoppingList);
 </script>
 
 <template>
-  <!-- Topbar: back arrow -->
-  <TopbarBackButton @back="goBack" />
+  <div class="relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
+    <ScreenHeader
+      :title="title"
+      :back-label="t('shoppingListDetail.backToShoppingLists')"
+      @back="goBack"
+    >
+      <template #trailing><AccountAvatarLink /></template>
+    </ScreenHeader>
 
-  <!-- Topbar: actions -->
-  <TopbarSettingsButtons
-    :shopping-list="shoppingList"
-    :shopping-list-id="shoppingListId"
-  />
-
-  <main class="flex flex-col flex-1 min-h-0 text-[#FFFFFF]">
-    <div class="mx-auto w-full max-w-5xl flex flex-col flex-1 min-h-0">
-      <!-- Loading -->
-      <div
-        v-if="isLoading"
-        class="flex-1 flex items-center justify-center text-[#D3DAE0]"
-      >
+    <main class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-[140px]">
+      <p v-if="isLoading" class="flex flex-1 items-center justify-center text-text-secondary">
         {{ t('shoppingListDetail.loading') }}
-      </div>
+      </p>
 
-      <!-- Items, dishes and week plan sections land here. -->
-      <div
+      <!-- Items land here. -->
+      <p
         v-else-if="shoppingList"
         data-testid="list-empty"
-        class="flex-1 flex items-center justify-center px-4 text-[#D3DAE0]"
+        class="flex flex-1 items-center justify-center text-text-secondary"
       >
         {{ t('shoppingListDetail.empty') }}
-      </div>
+      </p>
 
-      <!-- Error -->
-      <div
-        v-if="errorMessage"
-        class="flex-1 flex items-center justify-center px-4"
-      >
-        <p
-          class="rounded-md border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
-        >
+      <div v-if="errorMessage" class="flex flex-1 items-center justify-center px-2">
+        <p role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
           {{ errorMessage }}
         </p>
       </div>
-    </div>
-  </main>
+    </main>
+
+    <ListSectionsDock :shopping-list-id="shoppingListId" :shopping-list-name="title || undefined" current="list-detail" />
+  </div>
 </template>

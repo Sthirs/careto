@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import AccountAvatarLink from '@/components/AccountAvatarLink.vue';
+import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
+import ScreenHeader from '@/components/ScreenHeader.vue';
+import ShoppingListSettingsPanel from '@/components/ShoppingListSettingsPanel.vue';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
-import ShoppingListSettingsPanel from '@/components/ShoppingListSettingsPanel.vue';
-import { currentPageTitle } from '@/router';
 import type { ShoppingListDetail } from '@/types/shoppingList';
 
 const { t } = useI18n();
@@ -28,9 +30,6 @@ const loadShoppingList = async () => {
       `/lists/${shoppingListId.value}`,
     );
     shoppingList.value = data.shoppingList;
-    currentPageTitle.value = t('shoppingListDetail.settingsTitleSuffix', {
-      name: data.shoppingList.name,
-    });
   } catch {
     errorMessage.value = t('shoppingListDetail.loadFailed');
   } finally {
@@ -38,66 +37,43 @@ const loadShoppingList = async () => {
   }
 };
 
+// Every list section goes back to My lists (ADR-0022).
 const goBack = () => {
-  goBackTo(router, {
-    name: 'list-detail',
-    params: { id: shoppingListId.value },
-    state: { shoppingListName: shoppingList.value?.name },
-  });
+  goBackTo(router, { name: 'shoppingLists' });
 };
 
-onMounted(() => {
-  if (history.state.shoppingListName) {
-    currentPageTitle.value = t('shoppingListDetail.settingsTitleSuffix', {
-      name: String(history.state.shoppingListName),
-    });
-  }
-  loadShoppingList();
-});
-
-onBeforeUnmount(() => {
-  currentPageTitle.value = null;
-});
+onMounted(loadShoppingList);
 </script>
 
 <template>
-  <!-- Topbar: back arrow -->
-  <Teleport to="#topbar-leading">
-    <button
-      type="button"
-      class="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 transition hover:bg-white/10 hover:text-slate-100"
-      :aria-label="t('shoppingListSettings.backToShoppingList')"
-      @click="goBack"
+  <div class="relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
+    <ScreenHeader
+      :title="t('shoppingListSettings.title')"
+      :back-label="t('shoppingListDetail.backToShoppingLists')"
+      @back="goBack"
     >
-      <svg viewBox="0 0 20 20" class="h-5 w-5 fill-current">
-        <path
-          fill-rule="evenodd"
-          d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10Z"
-          clip-rule="evenodd"
-        />
-      </svg>
-    </button>
-  </Teleport>
+      <template #trailing><AccountAvatarLink /></template>
+    </ScreenHeader>
 
-  <main class="flex-1 overflow-y-auto text-slate-50 sm:px-6 lg:px-8">
-    <div class="mx-auto flex max-w-5xl flex-col gap-4">
-      <section
-        v-if="isLoading"
-        class="glass-panel rounded-md px-6 py-5 text-slate-300 sm:px-8"
-      >
+    <main class="flex min-h-0 flex-1 flex-col overflow-y-auto pt-3 pr-2.5 pb-[200px] pl-4">
+      <p v-if="isLoading && !shoppingList" class="flex flex-1 items-center justify-center text-text-secondary">
         {{ t('shoppingListSettings.loading') }}
-      </section>
-
-      <template v-else-if="shoppingList">
-        <ShoppingListSettingsPanel :shopping-list="shoppingList" @updated="loadShoppingList" />
-      </template>
-
-      <p
-        v-if="errorMessage"
-        class="rounded-md border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
-      >
-        {{ errorMessage }}
       </p>
-    </div>
-  </main>
+
+      <ShoppingListSettingsPanel
+        v-else-if="shoppingList"
+        :shopping-list="shoppingList"
+        @updated="loadShoppingList"
+      />
+
+      <div v-if="errorMessage" class="flex flex-1 items-center justify-center px-2">
+        <p role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
+          {{ errorMessage }}
+        </p>
+      </div>
+    </main>
+
+    <!-- The panel docks its own sheet with the Save button once the list is loaded. -->
+    <ListSectionsDock v-if="!shoppingList" :shopping-list-id="shoppingListId" current="list-settings" />
+  </div>
 </template>

@@ -17,9 +17,9 @@ test('account avatar: upload image → persists after reload', async ({
   // Initial state — avatar shows initials (new user has no avatar)
   await expect(account.avatar).toHaveText(user.displayName.charAt(0).toUpperCase());
 
-  // Edit badge is visible and contains an icon (served from /public/icons or inlined as data: URL)
+  // Camera badge is visible and carries its inline icon
   await expect(account.avatarEditBadge).toBeVisible();
-  await expect(account.avatarEditBadge.locator('img')).toHaveAttribute('src', /^(data:image\/svg\+xml|\/icons\/edit\.svg)$/);
+  await expect(account.avatarEditBadge.locator('svg')).toBeVisible();
 
   // Upload image via hidden file input
   await account.avatarInput.setInputFiles(FIXTURE_PATH);

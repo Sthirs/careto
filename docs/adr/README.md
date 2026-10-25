@@ -50,3 +50,4 @@ in the repository root). ADRs derive from the specification in [`docs/specificat
 | [ADR-0019](0019-browser-back-as-dismiss-and-up-navigation.md) | Browser Back as dismiss-or-go-up, via history pops and routed overlays | 🟢 accepted |
 | [ADR-0020](0020-web-push-notifications.md) | Web Push notifications for list events — VAPID, injectManifest, server-side localization | 🟢 accepted |
 | [ADR-0021](0021-motion-tokens-and-bottom-sheet.md) | Bottom-sheet motion and drag-to-dismiss — Carbon productive tokens, hand-written | 🟢 accepted |
+| [ADR-0022](0022-list-sections-as-siblings-back-to-lists.md) | List sections are siblings — tabs replace history, every section's back arrow goes to My lists | 🟡 proposed |

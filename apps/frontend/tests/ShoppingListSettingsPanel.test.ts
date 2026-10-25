@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, RouterLinkStub } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 import ShoppingListSettingsPanel from '@/components/ShoppingListSettingsPanel.vue';
@@ -60,7 +60,7 @@ const makeShoppingListWithAvatars = (overrides: Partial<ShoppingListDetail> = {}
 const mountComponent = (shoppingList: ShoppingListDetail = makeShoppingList()) => {
   return mount(ShoppingListSettingsPanel, {
     props: { shoppingList },
-    global: { plugins: [i18n] },
+    global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
   });
 };
 
@@ -79,11 +79,13 @@ describe('ShoppingListSettingsPanel', () => {
     expect(html).toContain('bob@test.com');
   });
 
-  it('renders "You" and "Admin" for current user member row', () => {
+  it('suffixes the current user\'s name with "(you)" and hides their remove button', () => {
     const wrapper = mountComponent();
-    const html = wrapper.html();
+    const rows = wrapper.findAll('[data-testid="list-member"]');
 
-    expect(html).toContain('You');
+    expect(rows[0].text()).toContain('Alice (you)');
+    expect(rows[0].find('button').exists()).toBe(false);
+    expect(rows[1].find('button').attributes('aria-label')).toBe('Remove Bob Smith from the list');
   });
 
   it('renders pending-invitation row with email', () => {
@@ -98,8 +100,13 @@ describe('ShoppingListSettingsPanel', () => {
     const wrapper = mountComponent();
     const html = wrapper.html();
 
-    expect(html).toContain('PENDING INVITATIONS');
     expect(html).toContain('carol@test.com');
+    const pending = wrapper.findAll('[data-testid="pending-invitation"]');
+    expect(pending).toHaveLength(1);
+    expect(pending[0].text()).toContain('Invitation sent');
+    expect(pending[0].find('button').attributes('aria-label')).toBe(
+      'Cancel invitation to carol@test.com',
+    );
   });
 
   it('hides pending invitations section when none exist', () => {
@@ -141,10 +148,10 @@ describe('ShoppingListSettingsPanel', () => {
     const picker = wrapper.find('[data-testid="list-image-picker"]');
     expect(picker.exists()).toBe(true);
 
-    // Should show gradient placeholder with initials
-    const placeholder = picker.find('.bg-gradient-to-br');
+    // Should show the palette-coloured cover with initials
+    const placeholder = picker.find('[role="img"]');
     expect(placeholder.exists()).toBe(true);
-    expect(placeholder.text()).toContain('WI'); // Weekend in Venice initials
+    expect(placeholder.text()).toBe('WV'); // same initials as the My lists card
   });
 
   it('renders image picker with image when imageUrl is set', () => {
@@ -160,16 +167,12 @@ describe('ShoppingListSettingsPanel', () => {
     expect(img.attributes('src')).toBe('https://example.com/photo.jpg');
   });
 
-  it('renders camera button with correct icon and aria-label', () => {
+  it('renders the "Change image" pill as the file input label', () => {
     const wrapper = mountComponent();
     const cameraLabel = wrapper.find('label[for="list-image-upload"]');
     expect(cameraLabel.exists()).toBe(true);
-    expect(cameraLabel.attributes('aria-label')).toBe('Change image');
-
-    const cameraIcon = cameraLabel.find('img');
-    expect(cameraIcon.exists()).toBe(true);
-    // The SVG is inlined as a data URL in tests, just verify it's an image
-    expect(cameraIcon.attributes('src')).toContain('svg');
+    expect(cameraLabel.text()).toBe('Change image');
+    expect(cameraLabel.find('svg').exists()).toBe(true);
   });
 
   it('renders hidden file input with accept="image/*" and no capture attribute', () => {
@@ -340,12 +343,12 @@ describe('ShoppingListSettingsPanel', () => {
     const wrapper = mountComponent(makeShoppingListWithAvatars());
 
     // Find the member row for Alice (first member)
-    const memberRows = wrapper.findAll('li');
+    const memberRows = wrapper.findAll('[data-testid="list-member"]');
     expect(memberRows.length).toBeGreaterThanOrEqual(2);
 
     // First member row (Alice) has imageUrl
     const aliceRow = memberRows[0];
-    const aliceAvatar = aliceRow.find('.flex.h-10.w-10');
+    const aliceAvatar = aliceRow.find('.h-10.w-10');
     expect(aliceAvatar.exists()).toBe(true);
     const aliceImg = aliceAvatar.find('img');
     expect(aliceImg.exists()).toBe(true);
@@ -359,31 +362,31 @@ describe('ShoppingListSettingsPanel', () => {
 
     // Second member row (Bob) has no imageUrl - should render initials
     const bobRow = memberRows[1];
-    const bobAvatar = bobRow.find('.flex.h-10.w-10');
+    const bobAvatar = bobRow.find('.h-10.w-10');
     expect(bobAvatar.exists()).toBe(true);
     expect(bobAvatar.find('img').exists()).toBe(false);
-    expect(bobAvatar.text()).toContain('BS'); // Bob Smith initials
+    expect(bobAvatar.text()).toBe('B'); // Bob Smith's initial
   });
 
   it('renders member row avatar initials when member has no imageUrl', () => {
     const wrapper = mountComponent(makeShoppingList());
 
-    const memberRows = wrapper.findAll('li');
+    const memberRows = wrapper.findAll('[data-testid="list-member"]');
     expect(memberRows.length).toBeGreaterThanOrEqual(2);
 
     // First member row (Alice) has no imageUrl
     const aliceRow = memberRows[0];
-    const aliceAvatar = aliceRow.find('.flex.h-10.w-10');
+    const aliceAvatar = aliceRow.find('.h-10.w-10');
     expect(aliceAvatar.exists()).toBe(true);
     expect(aliceAvatar.find('img').exists()).toBe(false);
     expect(aliceAvatar.text()).toContain('A'); // Alice initials
 
     // Second member row (Bob) has no imageUrl
     const bobRow = memberRows[1];
-    const bobAvatar = bobRow.find('.flex.h-10.w-10');
+    const bobAvatar = bobRow.find('.h-10.w-10');
     expect(bobAvatar.exists()).toBe(true);
     expect(bobAvatar.find('img').exists()).toBe(false);
-    expect(bobAvatar.text()).toContain('BS'); // Bob Smith initials
+    expect(bobAvatar.text()).toBe('B'); // Bob Smith's initial
   });
 
   it('shows server-supplied message when addMember fails with a response message', async () => {
@@ -393,8 +396,9 @@ describe('ShoppingListSettingsPanel', () => {
     });
 
     const wrapper = mountComponent();
-    await wrapper.find('input[type="email"]').setValue('carol@test.com');
-    await wrapper.find('form').trigger('submit');
+    await wrapper.find('#list-member-email').setValue('carol@test.com');
+    // The first form is the list name; the second adds a member.
+    await wrapper.findAll('form')[1].trigger('submit');
 
     await vi.waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledTimes(1);
@@ -407,8 +411,9 @@ describe('ShoppingListSettingsPanel', () => {
     mockApiPost.mockRejectedValueOnce(new Error('Network error'));
 
     const wrapper = mountComponent();
-    await wrapper.find('input[type="email"]').setValue('carol@test.com');
-    await wrapper.find('form').trigger('submit');
+    await wrapper.find('#list-member-email').setValue('carol@test.com');
+    // The first form is the list name; the second adds a member.
+    await wrapper.findAll('form')[1].trigger('submit');
 
     await vi.waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledTimes(1);

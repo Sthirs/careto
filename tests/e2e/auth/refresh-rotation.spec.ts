@@ -79,7 +79,7 @@ test.describe('refresh token rotation', () => {
     await refreshed;
 
     // The view rendered, so the retried request succeeded.
-    await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
 
     const token = await page.evaluate((key) => localStorage.getItem(key), TOKEN_KEY);
     expect(token).not.toBe('not-a-jwt');
@@ -90,7 +90,7 @@ test.describe('refresh token rotation', () => {
     const page = await pageForUser(user.email, user.password);
 
     await page.goto('/account');
-    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await page.getByRole('button', { name: 'Log out' }).click();
     // Bare /login: a deliberate sign-out must not come back as
     // /login?redirect=…&error=expired, which is what happened while the router
     // guard still fired a speculative restore against the just-revoked cookie.

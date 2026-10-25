@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { ref } from 'vue';
 
 import ShoppingListDetailView from '@/views/ShoppingListDetailView.vue';
 import { i18n } from '@/i18n';
@@ -23,6 +22,17 @@ function getDefaultShoppingList() {
     ],
     pendingInvitations: [],
   };
+}
+
+async function routerLinkStub() {
+  const { defineComponent, h } = await import('vue');
+  return defineComponent({
+    name: 'RouterLink',
+    props: { to: { type: Object, required: true } },
+    setup(props, { slots }) {
+      return () => h('a', { 'data-to': JSON.stringify(props.to) }, slots.default?.());
+    },
+  });
 }
 
 // Mock the api module
@@ -53,7 +63,9 @@ const mockRouterReplace = vi.fn(() => {
   return Promise.resolve(undefined);
 });
 let mockHistoryBack: string | null = null;
-vi.mock('vue-router', () => ({
+vi.mock('vue-router', async () => ({
+  // Renders an <a> exposing its target so tests can assert where it points.
+  RouterLink: await routerLinkStub(),
   useRoute: () => ({
     params: { id: 'list-1' },
     meta: { requiresAuth: true },
@@ -82,15 +94,10 @@ vi.mock('vue-router', () => ({
   }),
 }));
 
-// Mock the router module's currentPageTitle
-vi.mock('@/router', () => ({
-  currentPageTitle: ref('Test List'),
-}));
-
 // Mock auth store
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
-    user: { id: 'user-1', email: 'alice@test.com', displayName: 'Alice' },
+    user: { id: 'user-1', email: 'alice@test.com', displayName: 'Alice', imageUrl: null },
     token: 'test-token',
     isAuthenticated: true,
   }),
@@ -100,9 +107,6 @@ const mountShoppingListDetailView = () =>
   mount(ShoppingListDetailView, {
     global: {
       plugins: [i18n],
-      stubs: {
-        Teleport: true,
-      },
     },
   });
 
@@ -130,14 +134,24 @@ describe('ShoppingListDetailView', () => {
     });
   });
 
-  it('loads the list by route id and shows its name as the page title', async () => {
+  it('loads the list by route id and shows its name as the header title', async () => {
     const wrapper = mountShoppingListDetailView();
     await flushPromises();
 
     expect(api.get).toHaveBeenCalledWith('/lists/list-1');
-    const { currentPageTitle } = await import('@/router');
-    expect(currentPageTitle.value).toBe('Test List');
+    expect(wrapper.find('h1').text()).toBe('Test List');
     expect(wrapper.find('[data-testid="list-empty"]').exists()).toBe(true);
+  });
+
+  it('titles the header from history state before the fetch resolves', async () => {
+    Object.defineProperty(window, 'history', {
+      value: { state: { shoppingListName: 'From state' } },
+      writable: true,
+      configurable: true,
+    });
+    const wrapper = mountShoppingListDetailView();
+
+    expect(wrapper.find('h1').text()).toBe('From state');
   });
 
   it('shows the load error when the request fails', async () => {
@@ -151,15 +165,21 @@ describe('ShoppingListDetailView', () => {
     expect(wrapper.find('[data-testid="list-empty"]').exists()).toBe(false);
   });
 
-  it('renders the settings button once the list has loaded', async () => {
+  it('renders the list sections bar with List as the current section', async () => {
     mockShoppingListResponse({ ...getDefaultShoppingList(), name: 'Pantry' });
     const wrapper = mountShoppingListDetailView();
     await flushPromises();
 
-    const settingsButton = wrapper
-      .findAll('button')
-      .find((b) => b.attributes('aria-label') === 'Toggle settings');
-    expect(settingsButton).toBeDefined();
+    const nav = wrapper.find('nav[aria-label="List sections"]');
+    expect(nav.exists()).toBe(true);
+    const links = nav.findAll('a');
+    expect(links.map((l) => l.text())).toEqual(['List', 'Dishes', 'Week', 'Settings']);
+    expect(links[0].attributes('aria-current')).toBe('page');
+    expect(JSON.parse(links[3].attributes('data-to')!)).toEqual({
+      name: 'list-settings',
+      params: { id: 'list-1' },
+      state: { shoppingListName: 'Pantry' },
+    });
   });
 
   // The back arrow now goes through goBackTo (lib/backNavigation.ts,

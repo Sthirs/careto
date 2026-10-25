@@ -80,6 +80,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// The language picker is a custom listbox: open it, then click the option.
+const pickLanguage = async (
+  wrapper: Awaited<ReturnType<typeof mountView>>,
+  name: 'English' | 'Italiano',
+) => {
+  await wrapper.find('[data-testid="account-language"]').trigger('click');
+  await flushPromises();
+  const option = wrapper
+    .findAll('[role="option"]')
+    .find((o) => o.text().includes(name))!;
+  await option.trigger('click');
+};
+
 const mountView = async (
   userOverrides: Partial<{
     id: string;
@@ -128,7 +141,7 @@ describe('AccountView language selector', () => {
     vi.mocked(api.patch).mockResolvedValue({ data: { user: patchUser } });
     const wrapper = await mountView();
 
-    await wrapper.find('[data-testid="account-language"]').setValue('it');
+    await pickLanguage(wrapper, 'Italiano');
     expect(api.patch).not.toHaveBeenCalled();
     expect(document.documentElement.lang).toBe('en');
 
@@ -152,7 +165,7 @@ describe('AccountView language selector', () => {
     const wrapper = await mountView();
 
     await wrapper.find('#account-name').setValue('Nuovo Nome');
-    await wrapper.find('[data-testid="account-language"]').setValue('it');
+    await pickLanguage(wrapper, 'Italiano');
     await wrapper.find('[data-testid="account-save"]').trigger('click');
 
     expect(api.patch).toHaveBeenCalledWith('/auth/me', {
@@ -165,7 +178,7 @@ describe('AccountView language selector', () => {
     vi.mocked(api.patch).mockRejectedValue(new Error('boom'));
     const wrapper = await mountView();
 
-    await wrapper.find('[data-testid="account-language"]').setValue('it');
+    await pickLanguage(wrapper, 'Italiano');
     await wrapper.find('[data-testid="account-save"]').trigger('click');
     await flushPromises();
 
@@ -181,7 +194,57 @@ describe('AccountView language selector', () => {
       wrapper.find('[data-testid="account-save"]').attributes('disabled'),
     ).toBeDefined();
 
-    await wrapper.find('[data-testid="account-language"]').setValue('it');
+    await pickLanguage(wrapper, 'Italiano');
+    expect(
+      wrapper.find('[data-testid="account-save"]').attributes('disabled'),
+    ).toBeUndefined();
+  });
+});
+
+describe('AccountView language listbox', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setAppLocale('en');
+  });
+
+  it('shows the saved language and opens a listbox with the selected option marked', async () => {
+    const wrapper = await mountView();
+    const trigger = wrapper.find('[data-testid="account-language"]');
+    expect(trigger.text()).toContain('English');
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+
+    await trigger.trigger('click');
+    expect(trigger.attributes('aria-expanded')).toBe('true');
+    const options = wrapper.findAll('[role="option"]');
+    expect(options.map((o) => o.text())).toEqual(['ENEnglish', 'ITItaliano']);
+    expect(options[0].attributes('aria-selected')).toBe('true');
+    expect(options[1].attributes('aria-selected')).toBe('false');
+  });
+
+  it('picking an option updates the trigger and closes the listbox', async () => {
+    const wrapper = await mountView();
+    await pickLanguage(wrapper, 'Italiano');
+
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="account-language"]').text()).toContain('Italiano');
+  });
+
+  it('Escape closes the listbox without changing the language', async () => {
+    const wrapper = await mountView();
+    await wrapper.find('[data-testid="account-language"]').trigger('click');
+    await wrapper.findAll('[role="option"]')[1].trigger('keydown', { key: 'Escape' });
+
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="account-language"]').text()).toContain('English');
+  });
+
+  it('Enter on a focused option selects it', async () => {
+    const wrapper = await mountView();
+    await wrapper.find('[data-testid="account-language"]').trigger('click');
+    await wrapper.findAll('[role="option"]')[1].trigger('keydown', { key: 'Enter' });
+
+    expect(wrapper.find('[data-testid="account-language"]').text()).toContain('Italiano');
     expect(
       wrapper.find('[data-testid="account-save"]').attributes('disabled'),
     ).toBeUndefined();
@@ -195,20 +258,15 @@ describe('AccountView avatar picker', () => {
     globalThis.localStorage?.clear();
   });
 
-  it('renders edit badge with edit.svg and correct aria-label', async () => {
+  it('renders the camera badge as the file input label with the correct aria-label', async () => {
     const wrapper = await mountView();
     const editBadge = wrapper.find(
       '[data-testid="account-avatar-wrapper"] label',
     );
     expect(editBadge.exists()).toBe(true);
     expect(editBadge.attributes('aria-label')).toBe('Change photo');
-    const img = editBadge.find('img');
-    const src = img.attributes('src');
-    expect(src).toBeDefined();
-    // Vite may inline SVG as data URL or serve as /icons/edit.svg
-    expect(
-      src === '/icons/edit.svg' || src?.startsWith('data:image/svg+xml'),
-    ).toBe(true);
+    expect(editBadge.attributes('for')).toBe('avatar-upload');
+    expect(editBadge.find('svg').exists()).toBe(true);
   });
 
   it('shows user initial when no imageUrl', async () => {
@@ -362,7 +420,7 @@ describe('AccountView version display', () => {
     const wrapper = await mountView();
     const versionLine = wrapper.find('[data-testid="account-version"]');
     expect(versionLine.exists()).toBe(true);
-    expect(versionLine.text()).toMatch(/Version 9\.9\.9/);
+    expect(versionLine.text()).toBe('Careto · version 9.9.9');
   });
 
   it('renders dev fallback when VITE_APP_VERSION is not set', async () => {
@@ -370,7 +428,7 @@ describe('AccountView version display', () => {
     const wrapper = await mountView();
     const versionLine = wrapper.find('[data-testid="account-version"]');
     expect(versionLine.exists()).toBe(true);
-    expect(versionLine.text()).toMatch(/Version dev/);
+    expect(versionLine.text()).toBe('Careto · version dev');
   });
 });
 
@@ -426,7 +484,7 @@ describe('AccountView back navigation (ADR-0019)', () => {
 
     const logoutButton = wrapper
       .findAll('button')
-      .find((b) => b.text().includes('Sign Out'))!;
+      .find((b) => b.text().includes('Log out'))!;
     await logoutButton.trigger('click');
     await flushPromises();
 

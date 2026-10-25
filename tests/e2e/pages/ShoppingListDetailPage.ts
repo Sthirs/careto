@@ -6,28 +6,23 @@ import { type Page } from '@playwright/test';
 export class ShoppingListDetailPage {
   constructor(private page: Page) {}
 
-  // TopbarSettingsButtons.vue renders a text "Settings" button on wide
-  // viewports and an icon-only "Toggle settings" button on narrow ones; only
-  // one of them is visible at a time.
+  // ListSectionsNav.vue: the bottom "List sections" tab bar shared by every
+  // section of a list.
+  sectionsNav() {
+    return this.page.getByRole('navigation', { name: 'List sections' });
+  }
+
+  async openSection(label: 'List' | 'Dishes' | 'Week' | 'Settings'): Promise<void> {
+    await this.sectionsNav().getByRole('link', { name: label, exact: true }).click();
+  }
+
   async openSettings(): Promise<void> {
-    await this.page
-      .getByRole('button', { name: /^(Settings|Toggle settings)$/ })
-      .filter({ visible: true })
-      .click();
+    await this.openSection('Settings');
     await this.page.waitForURL(/\/lists\/[^/]+\/settings$/, { timeout: 10000 });
   }
 
-  // ShoppingListSettingsView.vue's topbar back arrow (aria-label "Back to
-  // list"), wired to `goBackTo` (lib/backNavigation.ts, ADR-0019): it pops the
-  // browser history entry when the previous one already is list-detail.
-  async clickBackToShoppingList(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Back to list' }).click();
-    await this.page.waitForURL(/\/lists\/[^/]+$/, { timeout: 10000 });
-  }
-
-  // ShoppingListDetailView.vue's own topbar back arrow (aria-label "Back to
-  // lists", plural — distinct from the singular "Back to list" used by the
-  // nested settings page above), wired the same way via goBackTo (ADR-0019).
+  // Every list section's header back arrow (aria-label "Back to lists") goes
+  // to My lists via goBackTo (lib/backNavigation.ts, ADR-0019 / ADR-0022).
   async clickBackToShoppingLists(): Promise<void> {
     await this.page.getByRole('button', { name: 'Back to lists' }).click();
     await this.page.waitForURL(/\/lists$/, { timeout: 10000 });

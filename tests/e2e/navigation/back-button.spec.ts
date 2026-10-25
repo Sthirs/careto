@@ -6,7 +6,7 @@
 import { test, expect } from '../fixtures/auth';
 import { ShoppingListsPage, ShoppingListDetailPage } from '../pages';
 
-test('the topbar back arrow and the browser Back button reach the same place', async ({
+test('the settings back arrow and the browser Back button both reach My lists', async ({
   authenticatedPage: page,
 }) => {
   const shoppingListsPage = new ShoppingListsPage(page);
@@ -18,16 +18,37 @@ test('the topbar back arrow and the browser Back button reach the same place', a
   await shoppingListsPage.openShoppingList(shoppingListName);
   const shoppingListId = await shoppingListDetailPage.getShoppingListId();
 
+  // ADR-0022: tabs replace the history entry, so from Settings the header
+  // arrow pops straight to My lists — exactly where Back would go.
   await shoppingListDetailPage.openSettings();
   await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}/settings$`));
 
-  // The topbar arrow pops history (goBackTo) exactly like Back would here.
-  await shoppingListDetailPage.clickBackToShoppingList();
-  await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}$`));
+  await shoppingListDetailPage.clickBackToShoppingLists();
+  await expect(page).toHaveURL(/\/lists$/);
 
-  // One further Back press must reach the lists overview, not the settings
-  // page again — proving the arrow click was a real history pop, not an
-  // extra forward push that grew the stack.
+  // Forward returns to Settings (the entry the tab replaced the list with),
+  // proving the arrow popped exactly one entry instead of pushing.
+  await page.goForward();
+  await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}/settings$`));
+});
+
+test('browser Back from a list section reached by the tab bar goes to My lists', async ({
+  authenticatedPage: page,
+}) => {
+  const shoppingListsPage = new ShoppingListsPage(page);
+  const shoppingListDetailPage = new ShoppingListDetailPage(page);
+
+  await page.goto('/lists');
+  const shoppingListName = 'e2e-back-btn-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  await shoppingListsPage.createShoppingList(shoppingListName);
+  await shoppingListsPage.openShoppingList(shoppingListName);
+  const shoppingListId = await shoppingListDetailPage.getShoppingListId();
+
+  await shoppingListDetailPage.openSection('Dishes');
+  await shoppingListDetailPage.openSection('Week');
+  await shoppingListDetailPage.openSettings();
+  await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}/settings$`));
+
   await page.goBack();
   await expect(page).toHaveURL(/\/lists$/);
 });

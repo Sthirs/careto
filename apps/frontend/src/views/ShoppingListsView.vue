@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { RouterLink } from 'vue-router';
 
+import AccountAvatarLink from '@/components/AccountAvatarLink.vue';
 import CreateListSheet from '@/components/lists/CreateListSheet.vue';
 import InvitationCard from '@/components/lists/InvitationCard.vue';
 import ShoppingListCard from '@/components/lists/ShoppingListCard.vue';
-import UserAvatar from '@/components/lists/UserAvatar.vue';
 import { useShoppingListsView } from '@/composables/useShoppingListsView';
-import { useAuthStore } from '@/stores/auth';
 
 const { t } = useI18n();
-const authStore = useAuthStore();
 
 const {
   shoppingLists, invitations, isLoading, errorMessage,
@@ -25,19 +22,7 @@ const {
   <div class="relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
     <header class="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
       <h1 class="ml-1 text-4xl font-extrabold tracking-[-0.01em]">{{ t('shoppingLists.title') }}</h1>
-      <RouterLink
-        :to="{ name: 'account' }"
-        :aria-label="t('app.openAccountPageAria')"
-        class="flex h-12 w-12 items-center justify-center rounded-full bg-[#243039] focus-visible:outline-3 focus-visible:outline-accent"
-      >
-        <UserAvatar
-          :id="authStore.user?.id ?? ''"
-          :name="authStore.user?.displayName ?? 'U'"
-          :image-url="authStore.user?.imageUrl"
-          color="#8ED9C9"
-          class="h-9 w-9 text-base"
-        />
-      </RouterLink>
+      <AccountAvatarLink />
     </header>
 
     <main class="flex min-h-0 flex-1 flex-col gap-5.5 overflow-y-auto pt-3 pr-2.5 pb-[140px] pl-4">

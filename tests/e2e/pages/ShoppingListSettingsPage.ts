@@ -3,12 +3,12 @@ import { expect, type Page } from '@playwright/test';
 const TOKEN_KEY = 'careto.auth.token';
 
 export class ShoppingListSettingsPage {
-  // ShoppingListSettingsPanel.vue — the redesigned panel's list-name input carries
-  // data-testid="list-name-input".
+  // ShoppingListSettingsPanel.vue — the list-name input carries
+  // data-testid="list-name-input"; Save sits in the bottom dock.
   private nameInput = this.page.getByTestId('list-name-input');
   private saveButton = this.page.getByRole('button', { name: 'Save' });
-  private memberEmailInput = this.page.getByPlaceholder('user@example.com');
-  private addButton = this.page.getByRole('button', { name: 'Add' });
+  private memberEmailInput = this.page.getByLabel('Add member');
+  private addButton = this.page.getByRole('button', { name: 'Add', exact: true });
 
   // List image upload locators
   readonly imageEditButton = this.page.getByTestId('list-image-edit');
@@ -32,7 +32,7 @@ export class ShoppingListSettingsPage {
   }
 
   async expectMemberVisible(displayName: string) {
-    // ShoppingListSettingsPanel.vue:110-129 — members <ul> <li> with <p>{{member.displayName}}</p>
+    // list-settings/MemberList.vue — each member row shows the display name.
     await expect(this.page.getByText(displayName, { exact: true })).toBeVisible();
   }
 
@@ -43,19 +43,21 @@ export class ShoppingListSettingsPage {
   }
 
   async expectMemberEmailVisible(email: string) {
-    // ShoppingListSettingsPanel.vue:117-118 — <p class="truncate text-xs ...">{{member.email}}</p>
     await expect(this.page.getByText(email, { exact: true })).toBeVisible();
   }
 
-  // ShoppingListSettingsPanel.vue — each member <li> shows the display name and the
-  // email; the email is unique, so rows are anchored on it.
+  // list-settings/MemberList.vue — each member row (data-testid="list-member")
+  // shows the display name and the email; the email is unique, so rows are
+  // anchored on it.
   private memberRow(email: string) {
-    return this.page.getByRole('listitem').filter({ has: this.page.getByText(email, { exact: true }) });
+    return this.page
+      .getByTestId('list-member')
+      .filter({ has: this.page.getByText(email, { exact: true }) });
   }
 
-  /** Clicks the row's "Remove member" button (rendered for everyone but the current user). */
+  /** Clicks the row's "Remove … from the list" button (rendered for everyone but the current user). */
   async removeMember(email: string) {
-    await this.memberRow(email).getByRole('button', { name: 'Remove member' }).click();
+    await this.memberRow(email).getByRole('button', { name: /^Remove .* from the list$/ }).click();
   }
 
   async expectMemberRowGone(email: string) {
@@ -67,25 +69,24 @@ export class ShoppingListSettingsPage {
     await expect(this.memberRow(email).locator('img')).toHaveAttribute('src', imageUrl);
   }
 
-  // -- Pending invitation selectors (ShoppingListSettingsPanel.vue:228-266) --
+  // -- Pending invitation selectors (list-settings/MemberList.vue) --
 
   /**
-   * The PENDING INVITATIONS section carries data-testid="pending-invitations-section"
-   * (ShoppingListSettingsPanel.vue:332) and contains a <ul> of pending rows. Each row
-   * renders the invitee email only (no displayName, no avatar).
+   * Pending invitations follow the members in the same list, one
+   * data-testid="pending-invitation" row each. A row renders "Invitation sent"
+   * plus the invitee email only (no displayName, no avatar).
    */
   private pendingInvitationsSection() {
-    return this.page.getByTestId('pending-invitations-section');
+    return this.page.getByTestId('pending-invitation');
   }
 
   async expectPendingInvitationVisible(email: string) {
-    // ShoppingListSettingsPanel.vue:243-245 — <p>{{ invitation.email }}</p>
     await expect(this.pendingInvitationsSection().getByText(email, { exact: true })).toBeVisible();
   }
 
   async expectPendingInvitationNameHidden(displayName: string) {
-    // The invitee's displayName must NOT appear in the PENDING INVITATIONS
-    // section (email-only rendering per ADR-0011).
+    // The invitee's displayName must NOT appear in the pending rows
+    // (email-only rendering per ADR-0011).
     await expect(
       this.pendingInvitationsSection().getByText(displayName, { exact: true }),
     ).not.toBeVisible();
@@ -94,9 +95,8 @@ export class ShoppingListSettingsPage {
   /** Clicks the pending row's "Cancel invitation" button, as the inviter would. */
   async cancelInvitationViaUi(email: string) {
     await this.pendingInvitationsSection()
-      .getByRole('listitem')
       .filter({ hasText: email })
-      .getByRole('button', { name: 'Cancel invitation' })
+      .getByRole('button', { name: `Cancel invitation to ${email}` })
       .click();
   }
 

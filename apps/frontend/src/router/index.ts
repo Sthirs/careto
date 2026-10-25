@@ -9,6 +9,7 @@ const ShoppingListsView = () => import('@/views/ShoppingListsView.vue');
 const ShoppingListDetailView = () => import('@/views/ShoppingListDetailView.vue');
 const AccountView = () => import('@/views/AccountView.vue');
 const ShoppingListSettingsView = () => import('@/views/ShoppingListSettingsView.vue');
+const ShoppingListSectionPlaceholderView = () => import('@/views/ShoppingListSectionPlaceholderView.vue');
 
 export const currentPageTitle = ref<string | null>(null);
 
@@ -42,19 +43,34 @@ export const router = createRouter({
       path: '/lists/:id',
       name: 'list-detail',
       component: ShoppingListDetailView,
-      meta: { requiresAuth: true, title: 'List' },
+      // List sections and Account render their own ScreenHeader.
+      meta: { requiresAuth: true, title: 'List', hideTopbar: true },
+    },
+    {
+      path: '/lists/:id/dishes',
+      name: 'list-dishes',
+      component: ShoppingListSectionPlaceholderView,
+      props: { section: 'list-dishes' },
+      meta: { requiresAuth: true, title: 'Dishes', hideTopbar: true },
+    },
+    {
+      path: '/lists/:id/week',
+      name: 'list-week',
+      component: ShoppingListSectionPlaceholderView,
+      props: { section: 'list-week' },
+      meta: { requiresAuth: true, title: 'Week', hideTopbar: true },
     },
     {
       path: '/lists/:id/settings',
       name: 'list-settings',
       component: ShoppingListSettingsView,
-      meta: { requiresAuth: true, title: 'List Settings' },
+      meta: { requiresAuth: true, title: 'List Settings', hideTopbar: true },
     },
     {
       path: '/account',
       name: 'account',
       component: AccountView,
-      meta: { requiresAuth: true, title: 'Account' },
+      meta: { requiresAuth: true, title: 'Account', hideTopbar: true },
     },
   ],
 });

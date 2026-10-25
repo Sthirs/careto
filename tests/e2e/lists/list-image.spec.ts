@@ -22,9 +22,10 @@ test('list image: upload in settings → appears on list card → persists after
   expect(shoppingListId).toBeTruthy();
   await page.goto('/lists/' + shoppingListId + '/settings');
 
-  // 3. Verify image edit button is visible and contains camera icon (served from /public/icons or inlined as data: URL)
+  // 3. Verify the "Change image" pill is visible with its inline camera icon
   await expect(shoppingListSettingsPage.imageEditButton).toBeVisible();
-  await expect(shoppingListSettingsPage.imageEditButton.locator('img')).toHaveAttribute('src', /^(data:image\/svg\+xml|\/icons\/camera\.svg)$/);
+  await expect(shoppingListSettingsPage.imageEditButton).toHaveText('Change image');
+  await expect(shoppingListSettingsPage.imageEditButton.locator('svg')).toBeVisible();
 
   // 4. Upload image via hidden file input
   await shoppingListSettingsPage.imageInput.setInputFiles(FIXTURE_PATH);

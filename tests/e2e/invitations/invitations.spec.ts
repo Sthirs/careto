@@ -62,7 +62,7 @@ test('happy path: invite registered user → name hidden on settings until accep
   };
   expect(inviteJson.invitation).not.toHaveProperty('inviteeId');
 
-  // Invariant: B's email is visible in PENDING INVITATIONS, but B's displayName
+  // Invariant: B's email is visible in a pending invitation row, but B's displayName
   // is NOT visible anywhere on A's settings page (name-hidden until accept).
   await settingsPageA.expectPendingInvitationVisible(accountB.email);
   await settingsPageA.expectPendingInvitationNameHidden(accountB.displayName);
