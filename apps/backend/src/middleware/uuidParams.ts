@@ -10,6 +10,7 @@ const UUID_PATTERN =
 
 const NOT_FOUND_MESSAGES: Record<string, string> = {
   id: 'List not found.',
+  dishId: 'Dish not found.',
   invitationId: 'Invitation not found.',
   itemId: 'Item not found.',
   userId: 'User is not a member of this list.',

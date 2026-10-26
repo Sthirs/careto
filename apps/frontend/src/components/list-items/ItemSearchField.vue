@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 
+// The dish form passes its own wording; the list screen uses the defaults.
+const props = defineProps<{ label?: string; placeholder?: string }>();
+
 const query = defineModel<string>({ required: true });
 
 const { t } = useI18n();
@@ -8,7 +11,7 @@ const { t } = useI18n();
 
 <template>
   <div class="flex h-13 items-center gap-2.5 rounded-xl bg-white pr-1.5 pl-3.5 focus-within:outline-3 focus-within:outline-offset-1 focus-within:outline-accent">
-    <label for="item-search" class="sr-only">{{ t('shoppingListDetail.searchLabel') }}</label>
+    <label for="item-search" class="sr-only">{{ props.label ?? t('shoppingListDetail.searchLabel') }}</label>
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
       <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4" />
     </svg>
@@ -18,7 +21,7 @@ const { t } = useI18n();
       type="text"
       autocomplete="off"
       enterkeyhint="done"
-      :placeholder="t('shoppingListDetail.searchPlaceholder')"
+      :placeholder="props.placeholder ?? t('shoppingListDetail.searchPlaceholder')"
       class="min-w-0 flex-1 bg-transparent text-[17px] text-ink outline-none placeholder:text-[#6B7680]"
       @keydown.esc="query = ''"
     />

@@ -57,6 +57,24 @@ export function useRoutedOverlay(id: string) {
   const closeBeforeLeaving = () =>
     router.replace({ path: route.path, query: restQuery() });
 
+  // Use before a further logical "back" (see the Dish delete flow): pops this
+  // overlay's entry like `close()`, and resolves once the router has settled
+  // on the page beneath, so the next `goBackTo` reads that page's own `back`.
+  // `closeBeforeLeaving` would instead leave two entries for the same page,
+  // and the next `goBackTo` would miss its target and replace.
+  const closeAndSettle = (): Promise<void> =>
+    new Promise((resolve) => {
+      if (!isOpen.value) {
+        resolve();
+        return;
+      }
+      const stop = router.afterEach(() => {
+        stop();
+        resolve();
+      });
+      close();
+    });
+
   const onKeydown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape' && isOpen.value) close();
   };
@@ -64,5 +82,5 @@ export function useRoutedOverlay(id: string) {
   onMounted(() => window.addEventListener('keydown', onKeydown));
   onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
-  return { isOpen, open, close, closeBeforeLeaving };
+  return { isOpen, open, close, closeBeforeLeaving, closeAndSettle };
 }

@@ -5,7 +5,14 @@ import { useI18n } from 'vue-i18n';
 import ItemIcon from '@/components/list-items/ItemIcon.vue';
 import type { SearchResult } from '@/composables/useItemSearch';
 
-const props = defineProps<{ results: SearchResult[] }>();
+const props = withDefaults(
+  defineProps<{
+    results: SearchResult[];
+    /** Where a taken result already is: on the list, or among a dish's ingredients. */
+    takenIn?: 'list' | 'dish';
+  }>(),
+  { takenIn: 'list' },
+);
 
 const emit = defineEmits<{ pick: [result: SearchResult] }>();
 
@@ -15,7 +22,11 @@ const hasMatches = computed(() => props.results.some((result) => !result.isNewCu
 
 const ariaLabelOf = (result: SearchResult) => {
   if (result.isNewCustom) return t('shoppingListDetail.addCustomAria', { name: result.label });
-  if (result.inList) return t('shoppingListDetail.alreadyInListAria', { name: result.label });
+  if (result.taken) {
+    return props.takenIn === 'dish'
+      ? t('dishes.alreadyIngredientAria', { name: result.label })
+      : t('shoppingListDetail.alreadyInListAria', { name: result.label });
+  }
   return t('shoppingListDetail.addItemAria', { name: result.label });
 };
 </script>
@@ -35,9 +46,9 @@ const ariaLabelOf = (result: SearchResult) => {
           class="flex min-h-16 w-full items-center gap-4 pr-2.5 pl-4.5 text-left text-white focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-accent"
           :class="result.isNewCustom ? 'rounded-xl border-2 border-dashed border-outline bg-transparent' : 'bg-surface'"
           :aria-label="ariaLabelOf(result)"
-          :aria-disabled="result.inList || undefined"
+          :aria-disabled="result.taken || undefined"
           data-testid="search-result"
-          @click="!result.inList && emit('pick', result)"
+          @click="!result.taken && emit('pick', result)"
         >
           <ItemIcon :path="result.icon" :size="34" :stroke-width="1.5" />
           <span class="flex min-w-0 flex-1 flex-col">
@@ -46,7 +57,13 @@ const ariaLabelOf = (result: SearchResult) => {
               {{ t('shoppingListDetail.addAsCustom') }}
             </span>
           </span>
-          <span v-if="result.inList" class="flex h-8 items-center rounded-full bg-danger px-3 text-[13px] font-extrabold">
+          <span
+            v-if="result.taken && takenIn === 'dish'"
+            class="flex h-8 items-center rounded-full bg-[#243039] px-3 text-[13px] font-extrabold text-accent"
+          >
+            {{ t('dishes.added') }}
+          </span>
+          <span v-else-if="result.taken" class="flex h-8 items-center rounded-full bg-danger px-3 text-[13px] font-extrabold">
             {{ t('shoppingListDetail.inList') }}
           </span>
           <span v-else class="flex size-9.5 shrink-0 items-center justify-center rounded-full bg-brand-500">

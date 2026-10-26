@@ -18,7 +18,7 @@ import { User } from './User';
 export const LIST_ITEM_STATUSES = ['to_buy', 'bought'] as const;
 export type ListItemStatus = (typeof LIST_ITEM_STATUSES)[number];
 
-/** Where an item came from (spec §List). Only `user` is produced today. */
+/** Where an item came from (spec §List): typed by a member, or put there by a dish. */
 export type ListItemSource = 'user' | 'dish' | 'recurring';
 
 /**

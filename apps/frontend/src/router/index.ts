@@ -10,6 +10,8 @@ const ShoppingListDetailView = () => import('@/views/ShoppingListDetailView.vue'
 const AccountView = () => import('@/views/AccountView.vue');
 const ShoppingListSettingsView = () => import('@/views/ShoppingListSettingsView.vue');
 const ShoppingListSectionPlaceholderView = () => import('@/views/ShoppingListSectionPlaceholderView.vue');
+const DishesView = () => import('@/views/DishesView.vue');
+const DishFormView = () => import('@/views/DishFormView.vue');
 
 export const currentPageTitle = ref<string | null>(null);
 
@@ -49,9 +51,20 @@ export const router = createRouter({
     {
       path: '/lists/:id/dishes',
       name: 'list-dishes',
-      component: ShoppingListSectionPlaceholderView,
-      props: { section: 'list-dishes' },
+      component: DishesView,
       meta: { requiresAuth: true, title: 'Dishes', hideTopbar: true },
+    },
+    {
+      path: '/lists/:id/dishes/new',
+      name: 'list-dish-new',
+      component: DishFormView,
+      meta: { requiresAuth: true, title: 'New dish', hideTopbar: true },
+    },
+    {
+      path: '/lists/:id/dishes/:dishId',
+      name: 'list-dish',
+      component: DishFormView,
+      meta: { requiresAuth: true, title: 'Dish', hideTopbar: true },
     },
     {
       path: '/lists/:id/week',

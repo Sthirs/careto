@@ -43,7 +43,15 @@ const shoppingListId = computed(() => route.params.id as string);
 const { catalog, loadCatalog } = useItemCatalog();
 const { items, customItems, sectionOrder, loadItems, addItem, setStatus, removeItem } =
   useListItems(() => shoppingListId.value);
-const results = useItemSearch(query, catalog, customItems, items);
+const toBuyKeys = computed(
+  () =>
+    new Set(
+      items.value
+        .filter((item) => item.status === 'to_buy')
+        .map((item) => item.catalogItemKey ?? item.customItem?.id ?? ''),
+    ),
+);
+const results = useItemSearch(query, catalog, customItems, toBuyKeys);
 
 const labelOf = (item: ListItem) =>
   item.customItem ? item.customItem.name : t(`catalog.items.${item.catalogItemKey}`);

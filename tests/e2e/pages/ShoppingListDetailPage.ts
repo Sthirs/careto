@@ -39,7 +39,7 @@ export class ShoppingListDetailPage {
 
   // ItemSearchResults.vue: each result is a button named by its action.
   searchResult(name: string) {
-    return this.page.getByRole('list', { name: 'Matching items' }).getByRole('button', { name });
+    return this.page.getByRole('list', { name: 'Matching items' }).getByRole('button', { name, exact: true });
   }
 
   async addFromSearch(query: string, itemName: string): Promise<void> {

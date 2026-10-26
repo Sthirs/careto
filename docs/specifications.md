@@ -44,6 +44,13 @@ Careto is an application that autofill the grocery list based on the user's pref
 - A dish can be added to the list, and the ingredients of the dish will be added to the list.
 - A dish can be put in pause until a specific date, that dish will not be proposed to the list until that date.
 - Dishes keep information of the last time the user added them to the list.
+- A dish needs a name and at least one ingredient. Ingredients are chosen from the same search as list items: default catalog items or the list's custom items.
+- The dishes screen always shows an "In the list" and a "Suggested" section, each with a short text when it holds no dish; a "Paused" section appears only when a dish is paused.
+- A dish is in the list while at least one of its ingredients is still to buy because the dish was added. When all of them are bought or removed, the dish goes back to the suggested dishes on its own.
+- Adding an item to the list by hand never puts a dish in the list.
+- Taking a dish off the list removes the ingredients it added that are still to buy and that no other dish needs; items added by hand stay.
+- Suggested dishes are those neither in the list nor paused, the least recently added first.
+- Deleting a dish keeps on the list the items it added.
 
 ### Week plan
 

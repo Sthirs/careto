@@ -32,6 +32,8 @@ const repo = () => ({
   save: vi.fn(async (row: Record<string, unknown>) => ({ id: 'saved-id', ...row })),
   create: vi.fn((row: Record<string, unknown>) => row),
   delete: vi.fn(),
+  update: vi.fn(),
+  count: vi.fn(),
 });
 
 let repos: Record<string, ReturnType<typeof repo>> & { shoppingListRepository: unknown };
@@ -51,6 +53,7 @@ beforeEach(() => {
     catalogSectionRepository: repo(),
     customItemRepository: repo(),
     listItemRepository: repo(),
+    listItemDishRepository: repo(),
     sectionOrderRepository: repo(),
   };
 });
@@ -90,7 +93,7 @@ describe('addListItem', () => {
     expect(result.created).toBe(true);
     expect(result.item).toMatchObject({ id: 'saved-id', catalogItemKey: 'milk', sectionKey: 'milk-cheese' });
     expect(repos.listItemRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ shoppingListId: 'list-1', catalogItemKey: 'milk', customItemId: null, addedById: 'u1' }),
+      expect.objectContaining({ shoppingListId: 'list-1', catalogItemKey: 'milk', customItemId: null, source: 'user', addedById: 'u1' }),
     );
   });
 
@@ -145,6 +148,21 @@ describe('setListItemStatus', () => {
     const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
     expect(item.status).toBe('bought');
     expect(item.lastBoughtAt).toEqual(expect.any(String));
+  });
+
+  it('meets the open dish needs of a bought item', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
+    expect(repos.listItemDishRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ listItemId: 'item-1' }),
+      { fulfilledAt: expect.any(Date) },
+    );
+  });
+
+  it('leaves dish needs alone when an item goes back to buy', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
+    await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+    expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
   });
 
   it('keeps lastBoughtAt when putting an item back', async () => {
