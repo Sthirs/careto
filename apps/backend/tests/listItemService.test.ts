@@ -32,6 +32,8 @@ const repo = () => ({
   save: vi.fn(async (row: Record<string, unknown>) => ({ id: 'saved-id', ...row })),
   create: vi.fn((row: Record<string, unknown>) => row),
   delete: vi.fn(),
+  update: vi.fn(),
+  count: vi.fn(),
 });
 
 let repos: Record<string, ReturnType<typeof repo>> & { shoppingListRepository: unknown };
@@ -51,6 +53,7 @@ beforeEach(() => {
     catalogSectionRepository: repo(),
     customItemRepository: repo(),
     listItemRepository: repo(),
+    listItemDishRepository: repo(),
     sectionOrderRepository: repo(),
   };
 });
@@ -90,7 +93,7 @@ describe('addListItem', () => {
     expect(result.created).toBe(true);
     expect(result.item).toMatchObject({ id: 'saved-id', catalogItemKey: 'milk', sectionKey: 'milk-cheese' });
     expect(repos.listItemRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ shoppingListId: 'list-1', catalogItemKey: 'milk', customItemId: null, addedById: 'u1' }),
+      expect.objectContaining({ shoppingListId: 'list-1', catalogItemKey: 'milk', customItemId: null, source: 'user', addedById: 'u1' }),
     );
   });
 
@@ -103,6 +106,27 @@ describe('addListItem', () => {
     expect(result.created).toBe(false);
     expect(result.item.status).toBe('to_buy');
     expect(repos.listItemRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('claims a to-buy dish item when a member adds it by hand', async () => {
+    repos.catalogItemRepository.exists.mockResolvedValue(true);
+    repos.listItemRepository.findOne.mockResolvedValue(row({ source: 'dish' }));
+
+    const result = await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+
+    expect(repos.listItemRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'to_buy', source: 'user' }),
+    );
+    expect(result.item.source).toBe('user');
+  });
+
+  it('leaves a to-buy hand item untouched when it is added again', async () => {
+    repos.catalogItemRepository.exists.mockResolvedValue(true);
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+
+    await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+
+    expect(repos.listItemRepository.save).not.toHaveBeenCalled();
   });
 
   it('reuses a custom item with the same name, ignoring case and spacing', async () => {
@@ -145,6 +169,41 @@ describe('setListItemStatus', () => {
     const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
     expect(item.status).toBe('bought');
     expect(item.lastBoughtAt).toEqual(expect.any(String));
+  });
+
+  it('meets the open dish needs of a bought item', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
+    expect(repos.listItemDishRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ listItemId: 'item-1' }),
+      { fulfilledAt: expect.any(Date) },
+    );
+  });
+
+  it('reopens the dish needs of a buy undone within the grace period', async () => {
+    const boughtAt = new Date(Date.now() - 60_000);
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'dish', lastBoughtAt: boughtAt }),
+    );
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+
+    expect(repos.listItemDishRepository.update).toHaveBeenCalledWith(
+      { listItemId: 'item-1', fulfilledAt: boughtAt },
+      { fulfilledAt: null },
+    );
+    expect(item.source).toBe('dish');
+  });
+
+  it('puts an item back by hand after the grace period', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'dish', lastBoughtAt: new Date(Date.now() - 10 * 60_000) }),
+    );
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+
+    expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
+    expect(item.source).toBe('user');
   });
 
   it('keeps lastBoughtAt when putting an item back', async () => {

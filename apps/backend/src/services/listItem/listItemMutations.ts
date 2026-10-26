@@ -1,7 +1,7 @@
-import { QueryFailedError } from 'typeorm';
+import { IsNull, QueryFailedError } from 'typeorm';
 
 import { ListCustomItem } from '../../entities/ListCustomItem';
-import { ListItem, ListItemStatus } from '../../entities/ListItem';
+import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListItem';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import type { ListItemRepositories } from './listItemRepositories';
 import { serializeListItem, type SerializedListItem } from './listItemSerialization';
@@ -16,8 +16,11 @@ export type AddListItemResult = { item: SerializedListItem; created: boolean };
 
 const ITEM_RELATIONS = { catalogItem: true, customItem: true } as const;
 
+/** An un-buy this soon after the buy undoes a mistaken tap (ADR-0024). */
+export const UNBUY_GRACE_MS = 5 * 60_000;
+
 /** Postgres `unique_violation`: a concurrent request inserted the same row. */
-const isUniqueViolation = (error: unknown): boolean =>
+export const isUniqueViolation = (error: unknown): boolean =>
   error instanceof QueryFailedError &&
   (error.driverError as { code?: string } | undefined)?.code === '23505';
 
@@ -53,13 +56,15 @@ async function findOrCreateCustomItem(
   }
 }
 
+export type ItemReference = Pick<ListItem, 'catalogItemKey' | 'customItemId'>;
+
 /** Resolves the input to the reference columns of a `list_items` row. */
-async function resolveReference(
+export async function resolveReference(
   repositories: ListItemRepositories,
   shoppingListId: string,
   input: AddListItemInput,
   userId: string,
-): Promise<Pick<ListItem, 'catalogItemKey' | 'customItemId'>> {
+): Promise<ItemReference> {
   if ('catalogItemKey' in input) {
     const exists = await repositories.catalogItemRepository.exists({
       where: { key: input.catalogItemKey },
@@ -86,17 +91,18 @@ async function resolveReference(
 }
 
 /**
- * Puts an item on the list. An item already on it (bought or not) is moved
- * back to `to_buy` instead of being duplicated.
+ * Makes sure the referenced item is on the list and to buy. An item already
+ * on it (bought or not) is moved back to `to_buy` instead of being
+ * duplicated. `source` says why the item is to buy now (ADR-0024): a bought
+ * item takes the caller's source, and a hand add claims a to-buy item.
  */
-export async function addListItem(
+export async function ensureListItem(
   repositories: ListItemRepositories,
   shoppingListId: string,
-  input: AddListItemInput,
+  reference: ItemReference,
+  source: ListItemSource,
   userId: string,
-): Promise<AddListItemResult> {
-  await getShoppingListForMember(repositories, shoppingListId, userId);
-  const reference = await resolveReference(repositories, shoppingListId, input, userId);
+): Promise<{ item: ListItem; created: boolean }> {
   const where = reference.catalogItemKey
     ? { shoppingListId, catalogItemKey: reference.catalogItemKey }
     : { shoppingListId, customItemId: reference.customItemId as string };
@@ -112,7 +118,7 @@ export async function addListItem(
           shoppingListId,
           ...reference,
           status: 'to_buy',
-          source: 'user',
+          source,
           addedById: userId,
         }),
       );
@@ -128,11 +134,35 @@ export async function addListItem(
   }
 
   if (!item) throw new Error('Item not found.');
-  if (!created && item.status !== 'to_buy') {
-    item.status = 'to_buy';
-    item = await repositories.listItemRepository.save(item);
+  if (!created) {
+    const reopened = item.status !== 'to_buy';
+    const nextSource = reopened || source === 'user' ? source : item.source;
+    if (reopened || nextSource !== item.source) {
+      item.status = 'to_buy';
+      item.source = nextSource;
+      item = await repositories.listItemRepository.save(item);
+    }
   }
 
+  return { item, created };
+}
+
+/** Puts an item on the list, as typed or picked by a member. */
+export async function addListItem(
+  repositories: ListItemRepositories,
+  shoppingListId: string,
+  input: AddListItemInput,
+  userId: string,
+): Promise<AddListItemResult> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const reference = await resolveReference(repositories, shoppingListId, input, userId);
+  const { item, created } = await ensureListItem(
+    repositories,
+    shoppingListId,
+    reference,
+    'user',
+    userId,
+  );
   return { item: serializeListItem(item), created };
 }
 
@@ -150,8 +180,29 @@ export async function setListItemStatus(
   });
   if (!item) throw new Error('Item not found.');
 
+  if (status === 'to_buy' && item.status === 'bought') {
+    const boughtAt = item.lastBoughtAt;
+    if (boughtAt && Date.now() - boughtAt.getTime() <= UNBUY_GRACE_MS) {
+      // A mistaken tap: reopen the dish needs that this buy met.
+      await repositories.listItemDishRepository.update(
+        { listItemId: item.id, fulfilledAt: boughtAt },
+        { fulfilledAt: null },
+      );
+    } else {
+      // Put back from Last used: a member adds it by hand.
+      item.source = 'user';
+    }
+  }
+
   item.status = status;
-  if (status === 'bought') item.lastBoughtAt = new Date();
+  if (status === 'bought') {
+    item.lastBoughtAt = new Date();
+    // Buying an item meets every dish need still open on it (ADR-0024).
+    await repositories.listItemDishRepository.update(
+      { listItemId: item.id, fulfilledAt: IsNull() },
+      { fulfilledAt: item.lastBoughtAt },
+    );
+  }
 
   return serializeListItem(await repositories.listItemRepository.save(item));
 }

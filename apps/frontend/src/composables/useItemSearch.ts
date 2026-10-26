@@ -3,29 +3,30 @@ import { useI18n } from 'vue-i18n';
 
 import { CUSTOM_ITEM_ICON, ITEM_ICONS, SECTION_ICONS } from '@/lib/itemIcons';
 import { hasExactMatch, searchItems, type SearchEntry } from '@/lib/itemSearch';
-import type { AddItemInput, Catalog, CustomItem, ListItem } from '@/types/listItem';
+import type { AddItemInput, Catalog, CustomItem } from '@/types/listItem';
 
 export type SearchResult = {
   id: string;
   label: string;
   icon: string;
-  /** Already on the list and not bought: shown with the "In list" chip. */
-  inList: boolean;
+  /** Already picked (on the list to buy, or an ingredient of the dish): not addable again. */
+  taken: boolean;
   /** The "add as a custom item" row for what was typed. */
   isNewCustom: boolean;
   input: AddItemInput;
 };
 
 /**
- * Search results for the list screen: matching catalog and custom items in
- * the active locale, then a row to add the query as a new custom item unless
- * something matches it exactly.
+ * Search results for the list screen and the dish form: matching catalog and
+ * custom items in the active locale, then a row to add the query as a new
+ * custom item unless something matches it exactly. `taken` holds the catalog
+ * keys and custom item ids that are already picked.
  */
 export function useItemSearch(
   query: Ref<string>,
   catalog: Ref<Catalog | null>,
   customItems: Ref<CustomItem[]>,
-  items: Ref<ListItem[]>,
+  taken: Ref<Set<string>>,
 ): ComputedRef<SearchResult[]> {
   const { t, locale } = useI18n();
 
@@ -42,14 +43,6 @@ export function useItemSearch(
     () => new Map((catalog.value?.items ?? []).map((item) => [item.key, item.sectionKey])),
   );
 
-  const toBuy = computed(
-    () =>
-      new Set(
-        items.value
-          .filter((item) => item.status === 'to_buy')
-          .map((item) => item.catalogItemKey ?? item.customItem?.id),
-      ),
-  );
 
   return computed(() => {
     const typed = query.value.trim();
@@ -64,7 +57,7 @@ export function useItemSearch(
               ITEM_ICONS[entry.key] ??
               SECTION_ICONS[sectionOf.value.get(entry.key) ?? ''] ??
               CUSTOM_ITEM_ICON,
-            inList: toBuy.value.has(entry.key),
+            taken: taken.value.has(entry.key),
             isNewCustom: false,
             input: { catalogItemKey: entry.key },
           }
@@ -72,7 +65,7 @@ export function useItemSearch(
             id: `custom:${entry.id}`,
             label: entry.label,
             icon: CUSTOM_ITEM_ICON,
-            inList: toBuy.value.has(entry.id),
+            taken: taken.value.has(entry.id),
             isNewCustom: false,
             input: { customItemId: entry.id },
           },
@@ -83,7 +76,7 @@ export function useItemSearch(
         id: 'new-custom',
         label: typed,
         icon: CUSTOM_ITEM_ICON,
-        inList: false,
+        taken: false,
         isNewCustom: true,
         input: { customName: typed },
       });

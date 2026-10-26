@@ -5,6 +5,7 @@ import { CatalogItem } from '../../entities/CatalogItem';
 import { CatalogSection } from '../../entities/CatalogSection';
 import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem } from '../../entities/ListItem';
+import { ListItemDish } from '../../entities/ListItemDish';
 import { ListSectionOrder } from '../../entities/ListSectionOrder';
 import {
   createShoppingListRepositories,
@@ -20,6 +21,7 @@ export type ListItemRepositories = ShoppingListRepositories & {
   catalogSectionRepository: Repository<CatalogSection>;
   customItemRepository: Repository<ListCustomItem>;
   listItemRepository: Repository<ListItem>;
+  listItemDishRepository: Repository<ListItemDish>;
   sectionOrderRepository: Repository<ListSectionOrder>;
 };
 
@@ -30,6 +32,7 @@ export function createListItemRepositories(): ListItemRepositories {
     catalogSectionRepository: AppDataSource.getRepository(CatalogSection),
     customItemRepository: AppDataSource.getRepository(ListCustomItem),
     listItemRepository: AppDataSource.getRepository(ListItem),
+    listItemDishRepository: AppDataSource.getRepository(ListItemDish),
     sectionOrderRepository: AppDataSource.getRepository(ListSectionOrder),
   };
 }

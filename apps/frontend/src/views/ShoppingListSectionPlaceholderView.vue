@@ -8,8 +8,8 @@ import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
 import ScreenHeader from '@/components/ScreenHeader.vue';
 import { goBackTo } from '@/lib/backNavigation';
 
-// Dishes and Week share this screen until their features are built.
-const props = defineProps<{ section: 'list-dishes' | 'list-week' }>();
+// Week uses this screen until its feature is built.
+defineProps<{ section: 'list-week' }>();
 
 const { t } = useI18n();
 const route = useRoute();
@@ -19,7 +19,7 @@ const shoppingListId = computed(() => route.params.id as string);
 const shoppingListName: string | undefined = history.state?.shoppingListName
   ? String(history.state.shoppingListName)
   : undefined;
-const title = computed(() => t(props.section === 'list-dishes' ? 'listSections.dishes' : 'listSections.week'));
+const title = computed(() => t('listSections.week'));
 
 // Every list section goes back to My lists (ADR-0022).
 const goBack = () => {

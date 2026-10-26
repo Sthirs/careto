@@ -175,6 +175,30 @@ describe('useRoutedOverlay', () => {
     });
   });
 
+  describe('closeAndSettle', () => {
+    it('pops like close() and resolves once the router has navigated', async () => {
+      const router = await buildRouter({ [OVERLAY_QUERY_KEY]: 'delete' });
+      vi.mocked(goBackTo).mockImplementation((r, target) => {
+        void r.replace(target);
+      });
+      const { overlay } = mountOverlay(router, 'delete');
+
+      await overlay.closeAndSettle();
+
+      expect(goBackTo).toHaveBeenCalledWith(router, { path: '/g/1', query: {} });
+      expect(router.currentRoute.value.query).toEqual({});
+    });
+
+    it('resolves at once when the overlay is already closed', async () => {
+      const router = await buildRouter();
+      const { overlay } = mountOverlay(router, 'delete');
+
+      await overlay.closeAndSettle();
+
+      expect(goBackTo).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Escape key', () => {
     it('closes the overlay when it is open', async () => {
       const router = await buildRouter({ [OVERLAY_QUERY_KEY]: 'totals' });

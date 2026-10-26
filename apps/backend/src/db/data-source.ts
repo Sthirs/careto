@@ -5,8 +5,11 @@ import { DataSource } from 'typeorm';
 import { env } from '../config/env';
 import { CatalogItem } from '../entities/CatalogItem';
 import { CatalogSection } from '../entities/CatalogSection';
+import { Dish } from '../entities/Dish';
+import { DishIngredient } from '../entities/DishIngredient';
 import { ListCustomItem } from '../entities/ListCustomItem';
 import { ListItem } from '../entities/ListItem';
+import { ListItemDish } from '../entities/ListItemDish';
 import { ListSectionOrder } from '../entities/ListSectionOrder';
 import { ShoppingList } from '../entities/ShoppingList';
 import { Invitation } from '../entities/Invitation';
@@ -32,6 +35,9 @@ export const AppDataSource = new DataSource({
     ListSectionOrder,
     ListCustomItem,
     ListItem,
+    Dish,
+    DishIngredient,
+    ListItemDish,
   ],
 });
 

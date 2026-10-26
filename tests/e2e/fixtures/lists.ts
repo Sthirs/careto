@@ -10,7 +10,7 @@ import { registerViaApi, uniqueValue, type RegisteredUser } from './auth';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
 
-async function api<T>(token: string, method: string, path: string, body?: unknown): Promise<T> {
+export async function api<T>(token: string, method: string, path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${baseURL}/api${path}`, {
     method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
