@@ -28,7 +28,9 @@ const repo = () => ({
   ),
   create: vi.fn((row: Record<string, unknown>) => row),
   delete: vi.fn(async () => ({ affected: 1 })),
-  update: vi.fn(),
+  update: vi.fn(async () => ({ affected: 1 })),
+  insert: vi.fn(),
+  findOneByOrFail: vi.fn(),
   count: vi.fn(async () => 0),
 });
 
@@ -132,6 +134,10 @@ describe('createDish', () => {
 });
 
 describe('addDishToList', () => {
+  beforeEach(() => {
+    repos.listItemDishRepository.exists.mockResolvedValue(false);
+  });
+
   it('puts new ingredients on the list as dish items and links them', async () => {
     repos.dishRepository.findOne.mockResolvedValue(dish() as never);
     repos.listItemRepository.findOne.mockResolvedValue(null);
@@ -142,13 +148,13 @@ describe('addDishToList', () => {
     expect(repos.listItemRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ catalogItemKey: 'pasta', source: 'dish', status: 'to_buy' }),
     );
-    expect(repos.listItemDishRepository.save).toHaveBeenCalledWith({
+    expect(repos.listItemDishRepository.insert).toHaveBeenCalledWith({
       listItemId: 'item-1',
       dishId: 'dish-1',
       fulfilledAt: null,
     });
     expect(repos.dishRepository.update).toHaveBeenCalledWith(
-      { id: 'dish-1' },
+      { id: 'dish-1', lastAddedAt: new Date('2026-09-01T00:00:00Z') },
       { lastAddedAt: expect.any(Date), previousLastAddedAt: new Date('2026-09-01T00:00:00Z') },
     );
     expect(result.lastAddedAt).not.toBe('2026-09-01T00:00:00.000Z');
@@ -162,7 +168,7 @@ describe('addDishToList', () => {
 
     expect(repos.listItemRepository.create).not.toHaveBeenCalled();
     expect(repos.listItemRepository.save).not.toHaveBeenCalled();
-    expect(repos.listItemDishRepository.save).toHaveBeenCalledWith(
+    expect(repos.listItemDishRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ listItemId: 'item-1', dishId: 'dish-1' }),
     );
   });
@@ -173,7 +179,39 @@ describe('addDishToList', () => {
 
     await addDishToList(r(), 'list-1', 'dish-1', 'u1');
 
-    expect(repos.listItemRepository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'to_buy' }));
+    expect(repos.listItemRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'to_buy', source: 'dish' }),
+    );
+  });
+
+  it('keeps an open link and the add dates when the dish is already in the list', async () => {
+    repos.dishRepository.findOne.mockResolvedValue(dish({ ingredients: [ingredient('pasta', 0)] }) as never);
+    repos.listItemRepository.findOne.mockResolvedValue(listItem({}) as never);
+    repos.listItemDishRepository.find.mockResolvedValue([
+      { dishId: 'dish-1', listItem: listItem({}) },
+    ] as never);
+    repos.listItemDishRepository.exists.mockResolvedValue(true);
+
+    const result = await addDishToList(r(), 'list-1', 'dish-1', 'u1');
+
+    expect(repos.listItemDishRepository.insert).not.toHaveBeenCalled();
+    expect(repos.listItemDishRepository.save).not.toHaveBeenCalled();
+    expect(repos.dishRepository.update).not.toHaveBeenCalled();
+    expect(result.lastAddedAt).toBe('2026-09-01T00:00:00.000Z');
+  });
+
+  it('takes the dates a concurrent add wrote', async () => {
+    repos.dishRepository.findOne.mockResolvedValue(dish({ ingredients: [ingredient('pasta', 0)] }) as never);
+    repos.listItemRepository.findOne.mockResolvedValue(listItem({}) as never);
+    repos.dishRepository.update.mockResolvedValue({ affected: 0 });
+    repos.dishRepository.findOneByOrFail.mockResolvedValue({
+      lastAddedAt: new Date('2026-10-26T10:00:00Z'),
+      previousLastAddedAt: new Date('2026-09-01T00:00:00Z'),
+    });
+
+    const result = await addDishToList(r(), 'list-1', 'dish-1', 'u1');
+
+    expect(result.lastAddedAt).toBe('2026-10-26T10:00:00.000Z');
   });
 
   it('404s a dish of another list', async () => {
@@ -183,7 +221,7 @@ describe('addDishToList', () => {
 });
 
 describe('removeDishFromList', () => {
-  it('removes only to-buy dish items that no other dish still needs', async () => {
+  it('takes off only to-buy dish items that no other dish still needs', async () => {
     repos.dishRepository.findOne.mockResolvedValue(
       dish({ previousLastAddedAt: new Date('2026-08-01T00:00:00Z') }) as never,
     );
@@ -191,6 +229,10 @@ describe('removeDishFromList', () => {
       { dishId: 'dish-1', listItem: listItem({ id: 'dish-only' }) },
       { dishId: 'dish-1', listItem: listItem({ id: 'shared' }) },
       { dishId: 'dish-1', listItem: listItem({ id: 'by-hand', source: 'user' }) },
+      {
+        dishId: 'dish-1',
+        listItem: listItem({ id: 'reopened', lastBoughtAt: new Date('2026-10-01T00:00:00Z') }),
+      },
     ] as never);
     repos.listItemDishRepository.count.mockImplementation(async (options: unknown) => {
       const where = (options as { where: { listItemId: string } }).where;
@@ -204,6 +246,7 @@ describe('removeDishFromList', () => {
     );
     expect(repos.listItemRepository.delete).toHaveBeenCalledTimes(1);
     expect(repos.listItemRepository.delete).toHaveBeenCalledWith({ id: 'dish-only', shoppingListId: 'list-1' });
+    expect(repos.listItemRepository.update).toHaveBeenCalledWith({ id: 'reopened' }, { status: 'bought' });
     expect(repos.dishRepository.update).toHaveBeenCalledWith(
       { id: 'dish-1' },
       { lastAddedAt: new Date('2026-08-01T00:00:00Z'), previousLastAddedAt: null },

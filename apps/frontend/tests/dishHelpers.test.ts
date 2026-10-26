@@ -20,6 +20,14 @@ describe('dishDates', () => {
     expect(toIsoDate(addMonths(fromIsoDate('2026-10-26'), 1))).toBe('2026-11-26');
   });
 
+  it('clamps addMonths to the last day of a shorter month', () => {
+    const plusOne = (iso: string) => toIsoDate(addMonths(fromIsoDate(iso), 1));
+    expect(plusOne('2026-01-31')).toBe('2026-02-28');
+    expect(plusOne('2028-01-31')).toBe('2028-02-29');
+    expect(plusOne('2026-03-31')).toBe('2026-04-30');
+    expect(plusOne('2026-12-31')).toBe('2027-01-31');
+  });
+
   it('formats how long ago a dish was added', () => {
     const now = new Date('2026-10-26T12:00:00Z');
     expect(formatAgo('2026-10-25T12:00:00Z', 'en', now)).toBe('yesterday');

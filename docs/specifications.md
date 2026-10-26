@@ -49,6 +49,7 @@ Careto is an application that autofill the grocery list based on the user's pref
 - A dish is in the list while at least one of its ingredients is still to buy because the dish was added. When all of them are bought or removed, the dish goes back to the suggested dishes on its own.
 - Adding an item to the list by hand never puts a dish in the list.
 - Taking a dish off the list removes the ingredients it added that are still to buy and that no other dish needs; items added by hand stay.
+- Putting a bought ingredient back to buy right after buying it (a mistaken tap) puts its dish back in the list; putting it back later from "Last used" counts as adding it by hand.
 - Suggested dishes are those neither in the list nor paused, the least recently added first.
 - Deleting a dish keeps on the list the items it added.
 

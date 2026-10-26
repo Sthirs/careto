@@ -1,19 +1,35 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 import { Dish } from './Dish';
 import { ListItem } from './ListItem';
 
 /**
  * "This dish needs this list item" (ADR-0024). A link is open until the item
- * is bought; a dish with an open link to a to-buy item is "in the list".
- * Fulfilled links stay as the reason behind the purchase (spec §Learning).
+ * is bought; a dish with an open link to a to-buy item is "in the list". A
+ * pair has at most one open link. Fulfilled links stay, one per purchase, as
+ * the reason behind it (spec §Learning).
  */
 @Entity({ name: 'list_item_dishes' })
+@Index('UQ_list_item_dishes_open', ['listItemId', 'dishId'], {
+  unique: true,
+  where: '"fulfilled_at" IS NULL',
+})
 export class ListItemDish {
-  @PrimaryColumn({ name: 'list_item_id', type: 'uuid' })
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'list_item_id', type: 'uuid' })
   listItemId!: string;
 
-  @PrimaryColumn({ name: 'dish_id', type: 'uuid' })
+  @Column({ name: 'dish_id', type: 'uuid' })
   dishId!: string;
 
   @ManyToOne(() => ListItem, { nullable: false, onDelete: 'CASCADE' })

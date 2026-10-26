@@ -1,15 +1,34 @@
 import { IsNull } from 'typeorm';
 
-import { ensureListItem } from '../listItem/listItemMutations';
+import { ensureListItem, isUniqueViolation } from '../listItem/listItemMutations';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
-import { findDish, serializeWithStatus } from './dishQueries';
+import { findDish, getDishIdsInList, serializeWithStatus } from './dishQueries';
 import type { DishRepositories } from './dishRepositories';
 import type { SerializedDish } from './dishSerialization';
 
+/** Opens a link from the item to the dish, unless one is already open. */
+async function openLink(
+  repositories: DishRepositories,
+  listItemId: string,
+  dishId: string,
+): Promise<void> {
+  const open = await repositories.listItemDishRepository.exists({
+    where: { listItemId, dishId, fulfilledAt: IsNull() },
+  });
+  if (open) return;
+  try {
+    await repositories.listItemDishRepository.insert({ listItemId, dishId, fulfilledAt: null });
+  } catch (error: unknown) {
+    if (!isUniqueViolation(error)) throw error;
+  }
+}
+
 /**
- * Puts every ingredient of the dish on the list and links each item to the
- * dish (ADR-0024). Items already to buy stay as they are, bought ones go back
- * to buy, and new ones get `source: 'dish'`. Records the add for rotation.
+ * Puts every ingredient of the dish on the list and opens a link from each
+ * item to the dish (ADR-0024). Items already to buy stay as they are, bought
+ * ones go back to buy as dish items, and new ones get `source: 'dish'`.
+ * Fulfilled links are kept as purchase history. Records the add for
+ * rotation, unless the dish was already in the list.
  */
 export async function addDishToList(
   repositories: DishRepositories,
@@ -19,6 +38,7 @@ export async function addDishToList(
 ): Promise<SerializedDish> {
   await getShoppingListForMember(repositories, shoppingListId, userId);
   const dish = await findDish(repositories, shoppingListId, dishId);
+  const wasInList = (await getDishIdsInList(repositories, [dish.id])).has(dish.id);
 
   for (const ingredient of dish.ingredients) {
     const { item } = await ensureListItem(
@@ -28,26 +48,33 @@ export async function addDishToList(
       'dish',
       userId,
     );
-    await repositories.listItemDishRepository.save({
-      listItemId: item.id,
-      dishId: dish.id,
-      fulfilledAt: null,
-    });
+    await openLink(repositories, item.id, dish.id);
   }
 
-  dish.previousLastAddedAt = dish.lastAddedAt;
-  dish.lastAddedAt = new Date();
-  await repositories.dishRepository.update(
-    { id: dish.id },
-    { lastAddedAt: dish.lastAddedAt, previousLastAddedAt: dish.previousLastAddedAt },
-  );
+  if (!wasInList) {
+    // Conditional on the date read above, so a concurrent add bumps it once.
+    const addedAt = new Date();
+    const result = await repositories.dishRepository.update(
+      { id: dish.id, lastAddedAt: dish.lastAddedAt ?? IsNull() },
+      { lastAddedAt: addedAt, previousLastAddedAt: dish.lastAddedAt },
+    );
+    if (result.affected) {
+      dish.previousLastAddedAt = dish.lastAddedAt;
+      dish.lastAddedAt = addedAt;
+    } else {
+      const current = await repositories.dishRepository.findOneByOrFail({ id: dish.id });
+      dish.lastAddedAt = current.lastAddedAt;
+      dish.previousLastAddedAt = current.previousLastAddedAt;
+    }
+  }
   return serializeWithStatus(repositories, dish);
 }
 
 /**
  * Undoes an add: drops the dish's open links, then removes each linked item
- * that the dish put there, is still to buy, and no other dish still needs.
- * Items a member added by hand stay. Restores the previous add date.
+ * that is to buy because of a dish (`source: 'dish'`) and that no other dish
+ * still needs; one bought before goes back to bought. Items a member added or
+ * claimed by hand stay. Restores the previous add date.
  */
 export async function removeDishFromList(
   repositories: DishRepositories,
@@ -71,7 +98,11 @@ export async function removeDishFromList(
     const stillNeeded = await repositories.listItemDishRepository.count({
       where: { listItemId: listItem.id, fulfilledAt: IsNull() },
     });
-    if (stillNeeded === 0) {
+    if (stillNeeded > 0) continue;
+    if (listItem.lastBoughtAt) {
+      // The dish put a bought item back: return it to Last used.
+      await repositories.listItemRepository.update({ id: listItem.id }, { status: 'bought' });
+    } else {
       await repositories.listItemRepository.delete({ id: listItem.id, shoppingListId });
     }
   }

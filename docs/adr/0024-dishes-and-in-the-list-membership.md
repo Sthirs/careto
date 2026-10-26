@@ -51,33 +51,52 @@ from those links.
   - `dish_ingredients(id, dish_id, catalog_item_key?, custom_item_id?,
     position)`. It has the same one-reference CHECK and per-dish uniqueness as
     `list_items`. A typed ingredient becomes a list custom item, as on the List.
-  - `list_item_dishes(list_item_id, dish_id, fulfilled_at?)`. The PK covers both
-    ids, and both FKs `ON DELETE CASCADE`. Each row means "this dish needs this
-    item". The link stays **open** while `fulfilled_at` is null.
+  - `list_item_dishes(id, list_item_id, dish_id, fulfilled_at?)`. Both FKs
+    `ON DELETE CASCADE`. Each row means "this dish needs this item". The link
+    stays **open** while `fulfilled_at` is null. A partial unique index on
+    `(list_item_id, dish_id) WHERE fulfilled_at IS NULL` allows at most one
+    open link per pair. Fulfilled links accumulate, one per purchase.
 - **The rule.** A dish is *in the list* when it has at least one open link to a
   list item whose status is `to_buy`. The server computes this on every read
   and returns it as `inList`. Nothing stores it.
+- **`source` means why the item is to buy now**, not who first added it:
+  - a new item takes the source of the add that created it;
+  - a bought item that an add puts back takes that add's source;
+  - a hand add on an item already to buy sets `source='user'`: the member
+    claims it. A dish add on an item already to buy keeps its source.
 - **Add a dish** (`POST /lists/:id/dishes/:dishId/list`):
-  - for each ingredient, ensure its list item is to buy. A new item gets
-    `source='dish'`. An existing item keeps its `source` and goes back to
-    `to_buy` if it was bought;
-  - upsert the link with `fulfilled_at = null`;
-  - set `last_added_at = now`, keeping the old value in
-    `previous_last_added_at`.
+  - for each ingredient, ensure its list item is to buy, with the `source`
+    rule above;
+  - add an open link unless one is already open. Never rewrite a fulfilled
+    link;
+  - only when the dish was not already in the list, set
+    `last_added_at = now`, keeping the old value in `previous_last_added_at`.
+    The update is conditional on the value read, so concurrent adds bump it
+    once.
 - **Buy an item** (`PATCH …/items/:itemId` to `bought`): set `fulfilled_at` on
   every open link of that item.
   - When the last ingredient is bought, the dish leaves "in the list" on its own.
   - The fulfilled link stays as the reason behind the purchase, for Learning.
+- **Un-buy** (`PATCH …/items/:itemId` from `bought` to `to_buy`):
+  - within 5 minutes of the buy, it undoes a mistaken tap. It reopens the
+    links that this buy fulfilled (`fulfilled_at = last_bought_at`), and the
+    item keeps its `source`;
+  - later, it is a hand re-add from "Last used". It sets `source='user'` and
+    reopens no link.
 - **Add an item by hand**: no link is made, so no dish ever enters the list
-  this way. If the dish is added later, the existing item is linked and keeps
-  `source='user'`.
+  this way. If the item is already to buy, it gets `source='user'`. If the
+  dish is added later, the existing item is linked and keeps `source='user'`.
 - **Remove an item** (swipe): its links cascade away.
 - **Undo** (`DELETE /lists/:id/dishes/:dishId/list`):
   - delete the dish's open links;
-  - then delete each linked item that is still `to_buy`, has `source='dish'`,
-    and has no other open link;
+  - then take off each linked item that is still `to_buy`, has
+    `source='dish'`, and has no other open link. An item bought before
+    (`last_bought_at` set) goes back to `bought`, so it stays in "Last used";
+    any other is deleted;
   - restore `last_added_at` from `previous_last_added_at`.
-  - items added by hand, and items another dish needs, stay.
+  - items added or claimed by hand, and items another dish needs, stay;
+  - because `source` follows the current to-buy period, a bought hand item
+    that only the dish put back returns to bought.
 - **Sections:**
   - *Suggested* is neither in the list nor paused. It is sorted by
     `last_added_at` ascending (never-added first), then by name. This is the
@@ -134,6 +153,10 @@ from those links.
   icons*.
 - Relational modelling practice: a many-to-many association table that carries
   its own attribute (`fulfilled_at`), instead of a denormalised flag.
+- The branch code review, which found that a first-writer-wins `source`
+  broke undo, that re-adding a dish overwrote its purchase history and its
+  last-added date, and that an un-buy left the dish out of the list. The
+  user chose the 5-minute un-buy window.
 - The user's decisions in the design review: "In the list" and "Suggested"
   always visible with an empty text, at least one ingredient per dish, no
   partial-ingredients hint.
@@ -154,7 +177,7 @@ from those links.
 - **Production DDL** (prod runs `DB_SYNC=false`). Create `dishes`,
   `dish_ingredients` and `list_item_dishes` before deploying. Generate them with
   `typeorm schema:log` against a scratch database, so the CHECK and index names
-  match the entities.
+  (including the partial unique index on open links) match the entities.
 - **Follow-ups (topics):**
   - the Week plan proposal and acceptance, reusing the add-dish service and the
     Suggested order;

@@ -108,6 +108,27 @@ describe('addListItem', () => {
     expect(repos.listItemRepository.create).not.toHaveBeenCalled();
   });
 
+  it('claims a to-buy dish item when a member adds it by hand', async () => {
+    repos.catalogItemRepository.exists.mockResolvedValue(true);
+    repos.listItemRepository.findOne.mockResolvedValue(row({ source: 'dish' }));
+
+    const result = await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+
+    expect(repos.listItemRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'to_buy', source: 'user' }),
+    );
+    expect(result.item.source).toBe('user');
+  });
+
+  it('leaves a to-buy hand item untouched when it is added again', async () => {
+    repos.catalogItemRepository.exists.mockResolvedValue(true);
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+
+    await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+
+    expect(repos.listItemRepository.save).not.toHaveBeenCalled();
+  });
+
   it('reuses a custom item with the same name, ignoring case and spacing', async () => {
     repos.customItemRepository.findOne.mockResolvedValue({ id: 'c1', name: "Nonna's sauce" });
     repos.listItemRepository.findOne.mockResolvedValue(null);
@@ -159,10 +180,30 @@ describe('setListItemStatus', () => {
     );
   });
 
-  it('leaves dish needs alone when an item goes back to buy', async () => {
-    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
-    await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+  it('reopens the dish needs of a buy undone within the grace period', async () => {
+    const boughtAt = new Date(Date.now() - 60_000);
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'dish', lastBoughtAt: boughtAt }),
+    );
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+
+    expect(repos.listItemDishRepository.update).toHaveBeenCalledWith(
+      { listItemId: 'item-1', fulfilledAt: boughtAt },
+      { fulfilledAt: null },
+    );
+    expect(item.source).toBe('dish');
+  });
+
+  it('puts an item back by hand after the grace period', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'dish', lastBoughtAt: new Date(Date.now() - 10 * 60_000) }),
+    );
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+
     expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
+    expect(item.source).toBe('user');
   });
 
   it('keeps lastBoughtAt when putting an item back', async () => {

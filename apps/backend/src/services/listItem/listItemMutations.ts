@@ -16,8 +16,11 @@ export type AddListItemResult = { item: SerializedListItem; created: boolean };
 
 const ITEM_RELATIONS = { catalogItem: true, customItem: true } as const;
 
+/** An un-buy this soon after the buy undoes a mistaken tap (ADR-0024). */
+export const UNBUY_GRACE_MS = 5 * 60_000;
+
 /** Postgres `unique_violation`: a concurrent request inserted the same row. */
-const isUniqueViolation = (error: unknown): boolean =>
+export const isUniqueViolation = (error: unknown): boolean =>
   error instanceof QueryFailedError &&
   (error.driverError as { code?: string } | undefined)?.code === '23505';
 
@@ -90,7 +93,8 @@ export async function resolveReference(
 /**
  * Makes sure the referenced item is on the list and to buy. An item already
  * on it (bought or not) is moved back to `to_buy` instead of being
- * duplicated, and keeps the `source` it was first added with.
+ * duplicated. `source` says why the item is to buy now (ADR-0024): a bought
+ * item takes the caller's source, and a hand add claims a to-buy item.
  */
 export async function ensureListItem(
   repositories: ListItemRepositories,
@@ -130,9 +134,14 @@ export async function ensureListItem(
   }
 
   if (!item) throw new Error('Item not found.');
-  if (!created && item.status !== 'to_buy') {
-    item.status = 'to_buy';
-    item = await repositories.listItemRepository.save(item);
+  if (!created) {
+    const reopened = item.status !== 'to_buy';
+    const nextSource = reopened || source === 'user' ? source : item.source;
+    if (reopened || nextSource !== item.source) {
+      item.status = 'to_buy';
+      item.source = nextSource;
+      item = await repositories.listItemRepository.save(item);
+    }
   }
 
   return { item, created };
@@ -170,6 +179,20 @@ export async function setListItemStatus(
     relations: ITEM_RELATIONS,
   });
   if (!item) throw new Error('Item not found.');
+
+  if (status === 'to_buy' && item.status === 'bought') {
+    const boughtAt = item.lastBoughtAt;
+    if (boughtAt && Date.now() - boughtAt.getTime() <= UNBUY_GRACE_MS) {
+      // A mistaken tap: reopen the dish needs that this buy met.
+      await repositories.listItemDishRepository.update(
+        { listItemId: item.id, fulfilledAt: boughtAt },
+        { fulfilledAt: null },
+      );
+    } else {
+      // Put back from Last used: a member adds it by hand.
+      item.source = 'user';
+    }
+  }
 
   item.status = status;
   if (status === 'bought') {

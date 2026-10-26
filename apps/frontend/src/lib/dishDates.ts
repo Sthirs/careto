@@ -14,8 +14,10 @@ export function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
+/** Same day `months` later, clamped to the target month's last day (31 Jan + 1 → 28 Feb). */
 export function addMonths(date: Date, months: number): Date {
-  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + months + 1, 0).getDate();
+  return new Date(date.getFullYear(), date.getMonth() + months, Math.min(date.getDate(), lastDay));
 }
 
 /** "9 Nov" / "9 nov" in the active locale. */

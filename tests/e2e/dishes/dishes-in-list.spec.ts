@@ -143,3 +143,49 @@ test('in the list: adding a dish moves a bought ingredient back to buy', async (
   await expect.poll(() => listPage.tileNames(listPage.toBuyList())).toEqual(['Pasta']);
   await expect(listPage.lastUsedList()).toHaveCount(0);
 });
+
+test('in the list: undo keeps an ingredient another member added by hand meanwhile', async ({ pageForUser }) => {
+  const { owner, list, dishesPage, listPage } = await setup(pageForUser, 'InListClaim');
+  const dish = await createDishViaApi(owner, list.id, { name: 'Salad', ingredients: [{ catalogItemKey: 'tomatoes' }] });
+  await addDishToListViaApi(owner, list.id, dish.id);
+  // Another member, on a screen that has not refreshed yet, adds it by hand.
+  await addItemViaApi(owner, list.id, 'tomatoes');
+
+  await dishesPage.goto(list.id);
+  await dishesPage.undo('Salad');
+  await expect.poll(() => dishesPage.names(dishesPage.suggestedSection())).toEqual(['Salad']);
+
+  await dishesPage.openListTab();
+  await expect.poll(() => listPage.tileNames(listPage.toBuyList())).toEqual(['Tomatoes']);
+});
+
+test('in the list: undo returns a bought item that the dish put back to Last used', async ({ pageForUser }) => {
+  const { owner, list, dishesPage, listPage } = await setup(pageForUser, 'InListRestore');
+  await addItemViaApi(owner, list.id, 'onions');
+  await buyItemsViaApi(owner, list.id, ['onions']);
+  await createDishViaApi(owner, list.id, { name: 'Soup', ingredients: [{ catalogItemKey: 'onions' }] });
+
+  await dishesPage.goto(list.id);
+  await dishesPage.addToList('Soup');
+  await expect.poll(() => dishesPage.names(dishesPage.inListSection())).toEqual(['Soup']);
+  await dishesPage.undo('Soup');
+  await expect.poll(() => dishesPage.names(dishesPage.suggestedSection())).toEqual(['Soup']);
+
+  await dishesPage.openListTab();
+  await expect(listPage.toBuyList()).toHaveCount(0);
+  await expect(listPage.lastUsedList().getByText('Onions')).toBeVisible();
+});
+
+test('in the list: putting back a mistakenly bought ingredient puts the dish back', async ({ pageForUser }) => {
+  const { owner, list, page, dishesPage, listPage } = await setup(pageForUser, 'InListUnbuy');
+  const dish = await createDishViaApi(owner, list.id, { name: 'Pasta', ingredients: [{ catalogItemKey: 'pasta' }] });
+  await addDishToListViaApi(owner, list.id, dish.id);
+
+  await page.goto(`/lists/${list.id}`);
+  await listPage.markBought('Pasta');
+  await listPage.addBack('Pasta');
+  await expect.poll(() => listPage.tileNames(listPage.toBuyList())).toEqual(['Pasta']);
+
+  await dishesPage.goto(list.id);
+  await expect.poll(() => dishesPage.names(dishesPage.inListSection())).toEqual(['Pasta']);
+});

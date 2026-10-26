@@ -131,6 +131,75 @@ describe('dishes API', () => {
     expect((await getDish(owner.token, shoppingListId, pizza.id)).inList).toBe(true);
   });
 
+  it('keeps an ingredient that a member also added by hand when the dish is taken off', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('dishes-claim');
+    const { dish } = (await createDish(owner.token, shoppingListId, 'Salad', ['tomatoes'])).body;
+    await addToList(owner.token, shoppingListId, dish.id);
+    await send(owner.token, `/api/lists/${shoppingListId}/items`, 'POST', { catalogItemKey: 'tomatoes' });
+
+    await undo(owner.token, shoppingListId, dish.id);
+
+    const onList = await items(owner.token, shoppingListId);
+    expect(onList.map((item) => [item.catalogItemKey, item.status, item.source])).toEqual([
+      ['tomatoes', 'to_buy', 'user'],
+    ]);
+  });
+
+  it('returns a bought hand item that only the dish put back to bought', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('dishes-reopen');
+    const added = await send<{ item: Item }>(owner.token, `/api/lists/${shoppingListId}/items`, 'POST', {
+      catalogItemKey: 'onions',
+    });
+    await send(owner.token, `/api/lists/${shoppingListId}/items/${added.body.item.id}`, 'PATCH', { status: 'bought' });
+    const { dish } = (await createDish(owner.token, shoppingListId, 'Soup', ['onions'])).body;
+
+    await addToList(owner.token, shoppingListId, dish.id);
+    await undo(owner.token, shoppingListId, dish.id);
+
+    const onList = await items(owner.token, shoppingListId);
+    expect(onList.map((item) => [item.catalogItemKey, item.status])).toEqual([['onions', 'bought']]);
+  });
+
+  it('restores the real add date after a repeated add', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('dishes-twice');
+    const { dish } = (await createDish(owner.token, shoppingListId, 'Pasta', ['pasta'])).body;
+
+    const first = (await addToList(owner.token, shoppingListId, dish.id)).body.dish.lastAddedAt;
+    const second = await addToList(owner.token, shoppingListId, dish.id);
+    expect(second.status).toBe(200);
+    expect(second.body.dish.lastAddedAt).toBe(first);
+
+    const undone = await undo(owner.token, shoppingListId, dish.id);
+    expect(undone.body.dish.lastAddedAt).toBeNull();
+  });
+
+  it('is in the list again after re-adding a dish whose items were bought', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('dishes-readd');
+    const { dish } = (await createDish(owner.token, shoppingListId, 'Pesto', ['basil'])).body;
+    await addToList(owner.token, shoppingListId, dish.id);
+    const [item] = await items(owner.token, shoppingListId);
+    await send(owner.token, `/api/lists/${shoppingListId}/items/${item.id}`, 'PATCH', { status: 'bought' });
+
+    const again = await addToList(owner.token, shoppingListId, dish.id);
+
+    expect(again.status).toBe(200);
+    expect(again.body.dish.inList).toBe(true);
+  });
+
+  it('comes back in the list when a mistaken buy is undone', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('dishes-unbuy');
+    const { dish } = (await createDish(owner.token, shoppingListId, 'Pasta', ['pasta'])).body;
+    await addToList(owner.token, shoppingListId, dish.id);
+    const [item] = await items(owner.token, shoppingListId);
+    const patch = (status: Item['status']) =>
+      send(owner.token, `/api/lists/${shoppingListId}/items/${item.id}`, 'PATCH', { status });
+
+    await patch('bought');
+    expect((await getDish(owner.token, shoppingListId, dish.id)).inList).toBe(false);
+    await patch('to_buy');
+    expect((await getDish(owner.token, shoppingListId, dish.id)).inList).toBe(true);
+  });
+
   it('goes back to Suggested when its items are swiped away', async () => {
     const { shoppingListId, owner } = await createSoloShoppingList('dishes-swipe');
     const { dish } = (await createDish(owner.token, shoppingListId, 'Pasta', ['pasta'])).body;
