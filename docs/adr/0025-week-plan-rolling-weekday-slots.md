@@ -1,6 +1,6 @@
 # ADR-0025: Week plan — one rolling plan per list, slots keyed by weekday
 
-- **Status:** 🟡 proposed
+- **Status:** 🟢 accepted
 - **Date:** 2026-10-28
 - **Deciders:** Sthirs
 
