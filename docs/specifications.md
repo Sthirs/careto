@@ -61,6 +61,11 @@ Careto is an application that autofill the grocery list based on the user's pref
 - The day before the shopping day, a week plan is proposed to the user, and the user can accept or modify it.
 - When the user accepts the week plan, the ingredients of the dishes assigned to the slots are added to the list.
 - Dishes are proposed based on rotation and the last time they were added to the list.
+- A list has one week plan, shared by all its members. Slots belong to a day of the week (Monday to Sunday), not to a date.
+- The user picks the dish of a slot from the list's dishes, and can search them by name. A slot's dish can be changed or removed.
+- Adding the week plan to the list adds the ingredients of every planned dish, as adding each dish would. The plan stays as it is, so the menu can still be read during the week.
+- Starting a new plan empties every slot, for all members; it never changes the list. Starting a new plan can be undone.
+- Deleting a dish empties the slots it was planned in.
 
 ### List Settings
 

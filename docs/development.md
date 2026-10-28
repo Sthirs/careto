@@ -278,7 +278,7 @@ Notes:
 - There is one test file per endpoint area: `auth/register`, `auth/login`,
   `auth/me`, `auth/me/image`, `auth/session/refresh`, `auth/session/logout`,
   `lists GET`, `lists POST`, `lists/:id`, `lists/:id/image`, members,
-  invitations, and push subscriptions.
+  invitations, push subscriptions, list items, dishes, and the week plan.
 
 ### End-to-end tests
 

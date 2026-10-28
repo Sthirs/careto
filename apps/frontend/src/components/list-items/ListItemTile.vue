@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import ItemIcon from '@/components/list-items/ItemIcon.vue';
+import { DISH_ICON } from '@/lib/dishIcons';
 
 const props = defineProps<{
   label: string;
@@ -11,9 +13,13 @@ const props = defineProps<{
   actionLabel: string;
   /** Id of the element explaining swipe / Delete to remove. */
   describedBy: string;
+  /** The item is to buy because of a dish (`source: 'dish'`). */
+  fromDish?: boolean;
 }>();
 
 const emit = defineEmits<{ activate: []; remove: [] }>();
+
+const { t } = useI18n();
 
 /** A swipe further left than this share of the tile's width removes it. */
 const REMOVE_THRESHOLD = 0.35;
@@ -112,6 +118,16 @@ const toneClass = computed(() => (props.tone === 'to-buy' ? 'bg-danger' : 'bg-br
     >
       <ItemIcon :path="icon" />
       <span class="min-w-0 truncate text-[19px] font-extrabold">{{ label }}</span>
+      <span
+        v-if="fromDish"
+        role="img"
+        data-testid="from-dish-badge"
+        :aria-label="t('shoppingListDetail.fromDish')"
+        :title="t('shoppingListDetail.fromDish')"
+        class="-ml-2 flex size-6.5 shrink-0 items-center justify-center rounded-full bg-white/22"
+      >
+        <ItemIcon :path="DISH_ICON" :size="15" :stroke-width="2.4" />
+      </span>
     </button>
   </li>
 </template>

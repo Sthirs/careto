@@ -13,6 +13,12 @@ import {
   updateDishPause,
 } from '../controllers/dishController';
 import { addItem, listItems, removeItem, updateItemStatus } from '../controllers/listItemController';
+import {
+  addWeekPlanToList,
+  getWeekPlan,
+  replaceWeekPlan,
+  setWeekSlot,
+} from '../controllers/weekPlanController';
 import { requireAuth } from '../middleware/auth';
 import { uploadSingleImage } from '../middleware/upload';
 import { requireUuidParams } from '../middleware/uuidParams';
@@ -46,3 +52,7 @@ shoppingListRouter.delete('/:id/dishes/:dishId', ...authed, deleteDish);
 shoppingListRouter.post('/:id/dishes/:dishId/image', ...authed, uploadSingleImage, updateDishImage);
 shoppingListRouter.post('/:id/dishes/:dishId/list', ...authed, addDishToList);
 shoppingListRouter.delete('/:id/dishes/:dishId/list', ...authed, removeDishFromList);
+shoppingListRouter.get('/:id/week', ...authed, getWeekPlan);
+shoppingListRouter.put('/:id/week', ...authed, replaceWeekPlan);
+shoppingListRouter.put('/:id/week/slots', ...authed, setWeekSlot);
+shoppingListRouter.post('/:id/week/list', ...authed, addWeekPlanToList);
