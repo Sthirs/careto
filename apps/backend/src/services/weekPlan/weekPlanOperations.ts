@@ -1,14 +1,24 @@
 import { In } from 'typeorm';
 
-import type { WeekMeal } from '../../entities/WeekSlot';
-import { addDishToList } from '../dish/dishListing';
+import { WEEK_MEALS, type WeekMeal } from '../../entities/WeekSlot';
+import { putDishOnList } from '../dish/dishListing';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import type { WeekPlanRepositories } from './weekPlanRepositories';
 
 export type WeekSlotInput = { weekday: number; meal: WeekMeal; dishId: string };
 export type SerializedWeekPlan = { slots: WeekSlotInput[] };
 
-const MEAL_ORDER: Record<WeekMeal, number> = { lunch: 0, dinner: 1 };
+/** The planned slots of the list, Monday lunch first; no membership check. */
+async function readPlan(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+): Promise<SerializedWeekPlan> {
+  const rows = await repositories.weekSlotRepository.find({ where: { shoppingListId } });
+  const slots = rows
+    .map(({ weekday, meal, dishId }) => ({ weekday, meal, dishId }))
+    .sort((a, b) => a.weekday - b.weekday || WEEK_MEALS.indexOf(a.meal) - WEEK_MEALS.indexOf(b.meal));
+  return { slots };
+}
 
 /** The planned slots of the list, Monday lunch first. */
 export async function getPlan(
@@ -17,11 +27,7 @@ export async function getPlan(
   userId: string,
 ): Promise<SerializedWeekPlan> {
   await getShoppingListForMember(repositories, shoppingListId, userId);
-  const rows = await repositories.weekSlotRepository.find({ where: { shoppingListId } });
-  const slots = rows
-    .map(({ weekday, meal, dishId }) => ({ weekday, meal, dishId }))
-    .sort((a, b) => a.weekday - b.weekday || MEAL_ORDER[a.meal] - MEAL_ORDER[b.meal]);
-  return { slots };
+  return readPlan(repositories, shoppingListId);
 }
 
 /** Throws unless every dish id names a dish of the list. */
@@ -56,7 +62,7 @@ export async function setSlot(
       { conflictPaths: ['shoppingListId', 'weekday', 'meal'] },
     );
   }
-  return getPlan(repositories, shoppingListId, userId);
+  return readPlan(repositories, shoppingListId);
 }
 
 /** Replaces the whole plan: `[]` starts a new plan, the old slots undo it. */
@@ -78,7 +84,7 @@ export async function replacePlan(
       await table.insert(slots.map((slot) => ({ ...slot, shoppingListId })));
     }
   });
-  return getPlan(repositories, shoppingListId, userId);
+  return readPlan(repositories, shoppingListId);
 }
 
 /**
@@ -90,8 +96,9 @@ export async function addPlanToList(
   shoppingListId: string,
   userId: string,
 ): Promise<void> {
-  const { slots } = await getPlan(repositories, shoppingListId, userId);
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const { slots } = await readPlan(repositories, shoppingListId);
   for (const dishId of new Set(slots.map((slot) => slot.dishId))) {
-    await addDishToList(repositories, shoppingListId, dishId, userId);
+    await putDishOnList(repositories, shoppingListId, dishId, userId);
   }
 }

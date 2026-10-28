@@ -97,9 +97,23 @@ describe('week plan API', () => {
     const wrongDish = await setSlot(owner.token, shoppingListId, { weekday: 1, meal: 'lunch', dishId: foreign });
     expect(wrongDish.status).toBe(404);
 
+    // A dish of the list, so a 404 below can only come from the membership check.
+    const pasta = await createDish(owner.token, shoppingListId, 'Pasta', ['pasta']);
+    const planned: Slot[] = [{ weekday: 1, meal: 'lunch', dishId: pasta }];
+    await setSlot(owner.token, shoppingListId, planned[0]);
+
     const stranger = await newUser('week-stranger');
     expect((await send(stranger.token, weekPath(shoppingListId), 'GET')).status).toBe(404);
     expect((await send(stranger.token, `${weekPath(shoppingListId)}/list`, 'POST')).status).toBe(404);
+    expect((await setSlot(stranger.token, shoppingListId, { weekday: 2, meal: 'dinner', dishId: pasta })).status).toBe(404);
+    expect((await setSlot(stranger.token, shoppingListId, { weekday: 1, meal: 'lunch', dishId: null })).status).toBe(404);
+    expect((await send(stranger.token, weekPath(shoppingListId), 'PUT', { slots: [] })).status).toBe(404);
+    expect(
+      (await send(stranger.token, weekPath(shoppingListId), 'PUT', {
+        slots: [{ weekday: 3, meal: 'lunch', dishId: pasta }],
+      })).status,
+    ).toBe(404);
+    expect(await plan(owner.token, shoppingListId)).toEqual(planned);
   });
 
   it('validates slot bodies', async () => {

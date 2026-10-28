@@ -1,4 +1,4 @@
-import { foldText, matchScore } from '@/lib/itemSearch';
+import { foldText, rankByLabel } from '@/lib/itemSearch';
 import type { Dish } from '@/types/dish';
 import type { WeekMeal, WeekSlot } from '@/types/weekPlan';
 
@@ -36,20 +36,22 @@ export function withSlot(
   return dishId ? [...rest, { weekday, meal, dishId }] : rest;
 }
 
+const weekdayFormats = new Map<string, Intl.DateTimeFormat>();
+
 /** "Monday" for weekday 1, in the active locale, capitalised. */
 export function weekdayName(weekday: number, locale: string): string {
+  let format = weekdayFormats.get(locale);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, { weekday: 'long' });
+    weekdayFormats.set(locale, format);
+  }
   // 1 January 2024 was a Monday.
-  const name = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(new Date(2024, 0, weekday));
+  const name = format.format(new Date(2024, 0, weekday));
   return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
 }
 
 /** Dishes by name, or the ones matching `query`, best match first. */
 export function rankDishes(dishes: readonly Dish[], query: string, locale: string): Dish[] {
-  const byName = (a: Dish, b: Dish) => a.name.localeCompare(b.name, locale);
-  if (!foldText(query)) return [...dishes].sort(byName);
-  return dishes
-    .map((dish) => ({ dish, score: matchScore(dish.name, query) }))
-    .filter((entry): entry is { dish: Dish; score: number } => entry.score !== null)
-    .sort((a, b) => a.score - b.score || byName(a.dish, b.dish))
-    .map((entry) => entry.dish);
+  if (!foldText(query)) return [...dishes].sort((a, b) => a.name.localeCompare(b.name, locale));
+  return rankByLabel(dishes, query, (dish) => dish.name, locale);
 }

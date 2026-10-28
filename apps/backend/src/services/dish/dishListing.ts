@@ -1,5 +1,7 @@
 import { IsNull } from 'typeorm';
 
+import type { Dish } from '../../entities/Dish';
+
 import { ensureListItem, isUniqueViolation } from '../listItem/listItemMutations';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import { findDish, getDishIdsInList, serializeWithStatus } from './dishQueries';
@@ -28,15 +30,15 @@ async function openLink(
  * item to the dish (ADR-0024). Items already to buy stay as they are, bought
  * ones go back to buy as dish items, and new ones get `source: 'dish'`.
  * Fulfilled links are kept as purchase history. Records the add for
- * rotation, unless the dish was already in the list.
+ * rotation, unless the dish was already in the list. The caller has already
+ * checked membership.
  */
-export async function addDishToList(
+export async function putDishOnList(
   repositories: DishRepositories,
   shoppingListId: string,
   dishId: string,
   userId: string,
-): Promise<SerializedDish> {
-  await getShoppingListForMember(repositories, shoppingListId, userId);
+): Promise<Dish> {
   const dish = await findDish(repositories, shoppingListId, dishId);
   const wasInList = (await getDishIdsInList(repositories, [dish.id])).has(dish.id);
 
@@ -67,6 +69,18 @@ export async function addDishToList(
       dish.previousLastAddedAt = current.previousLastAddedAt;
     }
   }
+  return dish;
+}
+
+/** Checks membership, then {@link putDishOnList}. */
+export async function addDishToList(
+  repositories: DishRepositories,
+  shoppingListId: string,
+  dishId: string,
+  userId: string,
+): Promise<SerializedDish> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const dish = await putDishOnList(repositories, shoppingListId, dishId, userId);
   return serializeWithStatus(repositories, dish);
 }
 

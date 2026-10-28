@@ -5,9 +5,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/db/data-source', () => ({ AppDataSource: { getRepository: vi.fn() } }));
-vi.mock('../src/services/dish/dishListing', () => ({ addDishToList: vi.fn() }));
+vi.mock('../src/services/dish/dishListing', () => ({ putDishOnList: vi.fn() }));
 
-import { addDishToList } from '../src/services/dish/dishListing';
+import { putDishOnList } from '../src/services/dish/dishListing';
 import {
   addPlanToList,
   getPlan,
@@ -69,6 +69,11 @@ describe('getPlan', () => {
 });
 
 describe('setSlot', () => {
+  it('checks membership once', async () => {
+    await setSlot(r, 'list-1', { weekday: 3, meal: 'dinner', dishId: 'd1' }, 'u1');
+    expect(memberQuery.getOne).toHaveBeenCalledTimes(1);
+  });
+
   it('upserts a dish of the list into the slot', async () => {
     await setSlot(r, 'list-1', { weekday: 3, meal: 'dinner', dishId: 'd1' }, 'u1');
     expect(slots.upsert).toHaveBeenCalledWith(
@@ -118,13 +123,14 @@ describe('replacePlan', () => {
 });
 
 describe('addPlanToList', () => {
-  it('adds each planned dish once through the dish service', async () => {
+  it('checks membership once and adds each planned dish once', async () => {
     slots.find.mockResolvedValue([
       { weekday: 1, meal: 'lunch', dishId: 'd1' },
       { weekday: 2, meal: 'dinner', dishId: 'd2' },
       { weekday: 4, meal: 'lunch', dishId: 'd1' },
     ]);
     await addPlanToList(r, 'list-1', 'u1');
-    expect(vi.mocked(addDishToList).mock.calls.map((call) => call[2])).toEqual(['d1', 'd2']);
+    expect(vi.mocked(putDishOnList).mock.calls.map((call) => call[2])).toEqual(['d1', 'd2']);
+    expect(memberQuery.getOne).toHaveBeenCalledTimes(1);
   });
 });
