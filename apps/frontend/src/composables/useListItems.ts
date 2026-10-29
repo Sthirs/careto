@@ -5,6 +5,7 @@ import type {
   AddItemInput,
   CustomItem,
   ListItem,
+  ListItemOverride,
   ListItemsResponse,
   ListItemStatus,
 } from '@/types/listItem';
@@ -17,6 +18,7 @@ export type UseListItemsReturn = {
   addItem: (input: AddItemInput) => Promise<ListItem>;
   setStatus: (item: ListItem, status: ListItemStatus) => Promise<void>;
   removeItem: (item: ListItem) => Promise<void>;
+  setOverride: (item: ListItem, override: ListItemOverride) => Promise<void>;
 };
 
 /**
@@ -80,5 +82,31 @@ export function useListItems(shoppingListId: () => string): UseListItemsReturn {
     }
   };
 
-  return { items, customItems, sectionOrder, loadItems, addItem, setStatus, removeItem };
+  // The icon or store section chosen in the item menu (ADR-0026).
+  const setOverride = async (item: ListItem, override: ListItemOverride) => {
+    const previous = { ...item };
+    upsert(
+      'iconKey' in override
+        ? { ...item, iconKey: override.iconKey }
+        : { ...item, sectionKey: override.sectionKey ?? item.defaultSectionKey },
+    );
+    try {
+      const { data } = await api.patch<{ item: ListItem }>(`${base()}/${item.id}`, override);
+      upsert(data.item);
+    } catch (error: unknown) {
+      upsert(previous);
+      throw error;
+    }
+  };
+
+  return {
+    items,
+    customItems,
+    sectionOrder,
+    loadItems,
+    addItem,
+    setStatus,
+    removeItem,
+    setOverride,
+  };
 }

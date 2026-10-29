@@ -86,6 +86,56 @@ export class ShoppingListDetailPage {
     await this.page.mouse.up();
   }
 
+  // ItemMenuSheet.vue: the ⋮ sheet of a to-buy tile (ADR-0026).
+  itemMenu() {
+    return this.page.getByRole('dialog');
+  }
+
+  async openItemMenu(itemName: string): Promise<void> {
+    await this.toBuyList().getByRole('button', { name: `More options for ${itemName}` }).click();
+    await this.itemMenu().waitFor();
+  }
+
+  async removeViaMenu(itemName: string): Promise<void> {
+    await this.openItemMenu(itemName);
+    await this.itemMenu().getByRole('button', { name: 'Remove from list' }).click();
+  }
+
+  async changeIcon(itemName: string, iconSearch: string, iconLabel: string): Promise<void> {
+    await this.openItemMenu(itemName);
+    await this.itemMenu().getByRole('button', { name: 'Change icon' }).click();
+    await this.itemMenu().getByRole('textbox', { name: 'Search icons' }).fill(iconSearch);
+    await this.itemMenu().getByTitle(iconLabel, { exact: true }).click();
+    await this.itemMenu().getByRole('button', { name: 'Save icon' }).click();
+    await this.closeItemMenuFromActions();
+  }
+
+  async changeSection(itemName: string, sectionLabel: string): Promise<void> {
+    await this.openItemMenu(itemName);
+    await this.itemMenu().getByRole('button', { name: /^Store section/ }).click();
+    await this.itemMenu().getByRole('radio', { name: sectionLabel }).click();
+    await this.itemMenu().getByRole('button', { name: 'Save section' }).click();
+    await this.closeItemMenuFromActions();
+  }
+
+  /** Saving goes back to the item's actions; Escape then closes the sheet. */
+  private async closeItemMenuFromActions(): Promise<void> {
+    await this.itemMenu().getByRole('button', { name: 'Remove from list' }).waitFor();
+    await this.page.keyboard.press('Escape');
+    await this.itemMenu().waitFor({ state: 'hidden' });
+  }
+
+  /** The `d` of a tile's item icon, to compare icons before and after. */
+  async tileIconPath(itemName: string): Promise<string | null> {
+    return this.toBuyList()
+      .getByTestId('list-item')
+      .filter({ hasText: itemName })
+      .getByRole('button', { name: `Mark ${itemName} as bought` })
+      .locator('svg path')
+      .first()
+      .getAttribute('d');
+  }
+
   async getShoppingListId(): Promise<string> {
     // Use the URL's pathname, not a naive split('/').pop() — a trailing
     // ?overlay=<id> query (useRoutedOverlay, ADR-0019) would otherwise be

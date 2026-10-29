@@ -112,6 +112,46 @@ export const en = {
     removedAnnouncement: '{name} removed from the list',
     actionFailed: 'We could not update the list. Try again.',
     fromDish: 'For a dish',
+    moreOptionsAria: 'More options for {name}',
+  },
+
+  // The ⋮ sheet of a list item (ADR-0026).
+  itemMenu: {
+    title: 'Options for {name}',
+    customItem: 'Custom item',
+    catalogItem: 'Item from the catalogue',
+    changeIcon: 'Change icon',
+    storeSection: 'Store section',
+    notSorted: 'Not sorted yet',
+    remove: 'Remove from list',
+    iconTitle: 'Icon for {name}',
+    iconSubtitle: 'Pick the closest match',
+    iconSearchLabel: 'Search icons',
+    iconSearchPlaceholder: 'Search icons, e.g. tea',
+    iconsAria: 'Icons',
+    noIcons: 'No icons match “{query}”',
+    saveIcon: 'Save icon',
+    sectionTitle: 'Store section for {name}',
+    sectionSubtitle: 'The item is sorted with this section on the list',
+    sectionsAria: 'Store sections',
+    saveSection: 'Save section',
+    cancel: 'Cancel',
+  },
+
+  // Settings › Store sections (ADR-0026).
+  storeSections: {
+    title: 'Store sections',
+    backToSettings: 'Back to settings',
+    intro: 'Drag the sections into the order you walk through your shop. The list sorts items the same way.',
+    loading: 'Loading sections...',
+    loadFailed: 'We could not load the store sections.',
+    saveFailed: 'We could not save the order. Try again.',
+    listAria: 'Store sections in shopping order',
+    itemCount: '{count} item | {count} items',
+    gripAria: 'Move {name}, position {position} of {total}. Use the up and down arrow keys.',
+    movedAnnouncement: '{name} moved to position {position} of {total}',
+    reset: 'Reset to default order',
+    save: 'Save order',
   },
 
   // Labels of the default item catalog (ADR-0014): keyed by the backend's
@@ -662,6 +702,9 @@ export const en = {
     changeImageErrorTooLarge: 'Image must be 5 MB or smaller.',
     changeImageErrorGeneric: 'Could not upload the image. Please try again.',
     imageUploading: 'Uploading image…',
+    shoppingHeading: 'Shopping',
+    storeSections: 'Store sections',
+    storeSectionsHint: '{count} sections · drag to match your shop',
   },
 
   account: {

@@ -2,11 +2,11 @@ import { Response } from 'express';
 
 import { AuthedRequest, AuthenticatedRequest } from '../../middleware/auth';
 import { getCatalog as loadCatalog } from '../../services/catalogService';
-import { parseAddItemBody, parseStatusBody } from './listItemBodies';
+import { parseAddItemBody, parseItemUpdateBody } from './listItemBodies';
 import { listItemService } from './listItemServiceInstance';
 
 /** Membership and lookup failures are 404s, like the rest of the list API. */
-const sendError = (response: Response, error: unknown, fallback: string) => {
+export const sendError = (response: Response, error: unknown, fallback: string) => {
   const message = error instanceof Error ? error.message : fallback;
   response.status(message.includes('not found') ? 404 : 400).json({ message });
 };
@@ -53,24 +53,26 @@ export const addItem = async (
   }
 };
 
-export const updateItemStatus = async (
+/** Changes the item's status, icon or store section (ADR-0026). */
+export const updateItem = async (
   request: AuthenticatedRequest,
   response: Response,
 ): Promise<void> => {
   const { auth } = request as AuthedRequest;
-  const parsed = parseStatusBody(request.body);
+  const parsed = parseItemUpdateBody(request.body);
   if (!parsed.ok) {
     response.status(400).json({ message: parsed.message });
     return;
   }
 
+  const listId = request.params.id as string;
+  const itemId = request.params.itemId as string;
   try {
-    const item = await listItemService.setListItemStatus(
-      request.params.id as string,
-      request.params.itemId as string,
-      parsed.value,
-      auth.userId,
-    );
+    const update = parsed.value;
+    const item =
+      'status' in update
+        ? await listItemService.setListItemStatus(listId, itemId, update.status, auth.userId)
+        : await listItemService.setListItemOverride(listId, itemId, update, auth.userId);
     response.json({ item });
   } catch (error: unknown) {
     sendError(response, error, 'Unable to update item.');

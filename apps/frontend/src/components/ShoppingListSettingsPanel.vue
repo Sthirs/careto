@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { RouterLink } from 'vue-router';
 
+import ItemIcon from '@/components/list-items/ItemIcon.vue';
 import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
 import ListCoverPicker from '@/components/list-settings/ListCoverPicker.vue';
 import MemberInviteForm from '@/components/list-settings/MemberInviteForm.vue';
@@ -17,6 +19,10 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const SECTIONS_ICON = 'M8 6h12 M8 12h12 M8 18h12 M3 9l1.5-3L6 9 M3 15l1.5 3L6 15';
+/** The 13 catalog sections; "Own items" is not sortable (ADR-0026). */
+const SORTABLE_SECTION_COUNT = 13;
 
 const {
   isCurrentUser,
@@ -94,6 +100,24 @@ const {
         @remove="removeMember"
         @cancel="cancelInvitation"
       />
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-[22px] font-extrabold">{{ t('shoppingListSettings.shoppingHeading') }}</h2>
+      <RouterLink
+        :to="{ name: 'list-store-sections', params: { id: props.shoppingList.id } }"
+        data-testid="store-sections-link"
+        class="flex min-h-18 items-center gap-4 rounded-xl bg-surface pr-4 pl-4.5 text-white no-underline focus-visible:outline-3 focus-visible:outline-accent"
+      >
+        <ItemIcon :path="SECTIONS_ICON" :size="26" :stroke-width="2" />
+        <span class="flex flex-1 flex-col">
+          <span class="text-lg font-extrabold">{{ t('shoppingListSettings.storeSections') }}</span>
+          <span class="text-sm font-semibold text-[#C4CDD4]">
+            {{ t('shoppingListSettings.storeSectionsHint', { count: SORTABLE_SECTION_COUNT }) }}
+          </span>
+        </span>
+        <ItemIcon path="M9 6l6 6-6 6" :size="20" :stroke-width="2.4" class="text-[#C4CDD4]" />
+      </RouterLink>
     </section>
 
     <ListSectionsDock

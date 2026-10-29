@@ -6,3 +6,4 @@ export { AccountPage } from './AccountPage';
 export { DishesPage } from './DishesPage';
 export { DishFormPage } from './DishFormPage';
 export { WeekPage } from './WeekPage';
+export { StoreSectionsPage } from './StoreSectionsPage';

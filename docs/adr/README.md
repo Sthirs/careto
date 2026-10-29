@@ -54,3 +54,4 @@ in the repository root). ADRs derive from the specification in [`docs/specificat
 | [ADR-0023](0023-default-item-catalog-and-list-items.md) | Default item catalog and list items — slug-keyed reference tables, labels in the frontend | 🟢 accepted |
 | [ADR-0024](0024-dishes-and-in-the-list-membership.md) | Dishes and "in the list" — derived from dish-to-item links, never stored | 🟢 accepted |
 | [ADR-0025](0025-week-plan-rolling-weekday-slots.md) | Week plan — one rolling plan per list, slots keyed by weekday | 🟢 accepted |
+| [ADR-0026](0026-store-section-order-and-item-overrides.md) | Store section order and per-item icon and section overrides | 🟢 accepted |

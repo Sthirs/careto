@@ -1,5 +1,6 @@
 <script setup lang="ts">
-defineProps<{ title: string; backLabel: string }>();
+/** `compact` fits a longer title, such as "Store sections", beside the buttons. */
+defineProps<{ title: string; backLabel: string; compact?: boolean }>();
 
 defineEmits<{ back: [] }>();
 </script>
@@ -16,7 +17,10 @@ defineEmits<{ back: [] }>();
         <path d="M15 5l-7 7 7 7" />
       </svg>
     </button>
-    <h1 class="min-w-0 flex-1 truncate text-4xl font-extrabold tracking-[-0.01em]">{{ title }}</h1>
+    <h1
+      class="min-w-0 flex-1 truncate font-extrabold tracking-[-0.01em]"
+      :class="compact ? 'text-[30px] leading-[1.1]' : 'text-4xl'"
+    >{{ title }}</h1>
     <slot name="trailing" />
   </header>
 </template>

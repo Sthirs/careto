@@ -70,6 +70,16 @@ describe('ShoppingListSettingsPanel', () => {
     vi.clearAllMocks();
   });
 
+  it('links to the Store sections screen of the list', () => {
+    const wrapper = mountComponent();
+    const link = wrapper.findAllComponents(RouterLinkStub).find((candidate) =>
+      candidate.text().includes('Store sections'),
+    );
+
+    expect(link?.props('to')).toEqual({ name: 'list-store-sections', params: { id: wrapper.props('shoppingList').id } });
+    expect(link?.text()).toContain('13 sections · drag to match your shop');
+  });
+
   it('renders member row with displayName and email', () => {
     const wrapper = mountComponent();
     const html = wrapper.html();

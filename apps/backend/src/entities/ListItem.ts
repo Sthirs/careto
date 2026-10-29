@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 
 import { CatalogItem } from './CatalogItem';
+import { CatalogSection } from './CatalogSection';
 import { ListCustomItem } from './ListCustomItem';
 import { ShoppingList } from './ShoppingList';
 import { User } from './User';
@@ -61,6 +62,18 @@ export class ListItem {
 
   @Column({ name: 'custom_item_id', type: 'uuid', nullable: true })
   customItemId!: string | null;
+
+  /** A catalog item key whose icon replaces this item's own (ADR-0026). */
+  @Column({ name: 'icon_key', type: 'varchar', length: 60, nullable: true })
+  iconKey!: string | null;
+
+  /** A store section that replaces the item's own on this list (ADR-0026). */
+  @ManyToOne(() => CatalogSection, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'section_key' })
+  sectionOverride!: CatalogSection | null;
+
+  @Column({ name: 'section_key', type: 'varchar', length: 40, nullable: true })
+  sectionOverrideKey!: string | null;
 
   @Column({ type: 'enum', enum: LIST_ITEM_STATUSES, default: 'to_buy' })
   status!: ListItemStatus;

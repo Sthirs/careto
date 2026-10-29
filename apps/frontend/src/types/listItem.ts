@@ -12,8 +12,16 @@ export type ListItem = {
   lastBoughtAt: string | null;
   catalogItemKey: string | null;
   customItem: CustomItem | null;
+  /** The section the list sorts the item under, override included. */
   sectionKey: string;
+  /** The item's own section, before any override (ADR-0026). */
+  defaultSectionKey: string;
+  /** A catalog item key whose icon replaces the item's own. */
+  iconKey: string | null;
 };
+
+/** One override of a list item (ADR-0026); `null` clears it. */
+export type ListItemOverride = { iconKey: string | null } | { sectionKey: string | null };
 
 export type ListItemsResponse = {
   sectionOrder: string[];

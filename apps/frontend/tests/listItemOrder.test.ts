@@ -11,6 +11,8 @@ const item = (overrides: Partial<ListItem>): ListItem => ({
   catalogItemKey: null,
   customItem: null,
   sectionKey: 'own-items',
+  defaultSectionKey: 'own-items',
+  iconKey: null,
   ...overrides,
 });
 

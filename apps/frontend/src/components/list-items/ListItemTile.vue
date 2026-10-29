@@ -15,9 +15,14 @@ const props = defineProps<{
   describedBy: string;
   /** The item is to buy because of a dish (`source: 'dish'`). */
   fromDish?: boolean;
+  /** Accessible name of the ⋮ button; without it the tile has no menu. */
+  menuLabel?: string;
 }>();
 
-const emit = defineEmits<{ activate: []; remove: [] }>();
+const emit = defineEmits<{ activate: []; remove: []; menu: [] }>();
+
+const MENU_DOTS =
+  'M12 7.5a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z M12 13.8a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z M12 20.1a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z';
 
 const { t } = useI18n();
 
@@ -74,13 +79,19 @@ const onPointerEnd = (event: PointerEvent) => {
   offset.value = 0;
 };
 
+/** The click that ends a swipe is not a tap. */
+const isSwipeClick = () => {
+  const swallowed = swallowClick;
+  swallowClick = false;
+  return swallowed;
+};
+
 const onClick = () => {
-  // The click that ends a swipe is not a tap.
-  if (swallowClick) {
-    swallowClick = false;
-    return;
-  }
-  emit('activate');
+  if (!isSwipeClick()) emit('activate');
+};
+
+const onMenuClick = () => {
+  if (!isSwipeClick()) emit('menu');
 };
 
 const onKeydown = (event: KeyboardEvent) => {
@@ -105,29 +116,49 @@ const toneClass = computed(() => (props.tone === 'to-buy' ? 'bg-danger' : 'bg-br
     <div aria-hidden="true" class="absolute inset-0 flex items-center justify-end bg-ink pr-6 text-white">
       <ItemIcon path="M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v6 M14 11v6" :size="28" :stroke-width="2" />
     </div>
-    <button
-      type="button"
-      class="relative flex min-h-18 w-full items-center gap-4.5 px-5.5 text-left text-white focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-accent"
+    <div
+      class="relative flex min-h-18 items-center"
       :class="[toneClass, isDragging ? '' : 'transition-transform duration-(--duration-fast-02) ease-(--ease-standard-productive)']"
       :style="tileStyle"
-      :aria-label="actionLabel"
-      :aria-describedby="describedBy"
-      aria-keyshortcuts="Delete"
-      @click="onClick"
-      @keydown="onKeydown"
     >
-      <ItemIcon :path="icon" />
-      <span class="min-w-0 truncate text-[19px] font-extrabold">{{ label }}</span>
-      <span
-        v-if="fromDish"
-        role="img"
-        data-testid="from-dish-badge"
-        :aria-label="t('shoppingListDetail.fromDish')"
-        :title="t('shoppingListDetail.fromDish')"
-        class="-ml-2 flex size-6.5 shrink-0 items-center justify-center rounded-full bg-white/22"
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 items-center gap-4.5 self-stretch pl-5.5 text-left text-white focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-accent"
+        :class="menuLabel ? '' : 'pr-5.5'"
+        :aria-label="actionLabel"
+        :aria-describedby="describedBy"
+        aria-keyshortcuts="Delete"
+        @click="onClick"
+        @keydown="onKeydown"
       >
-        <ItemIcon :path="DISH_ICON" :size="15" :stroke-width="2.4" />
-      </span>
-    </button>
+        <ItemIcon :path="icon" />
+        <span class="min-w-0 truncate text-[19px] font-extrabold">{{ label }}</span>
+        <span
+          v-if="fromDish"
+          role="img"
+          data-testid="from-dish-badge"
+          :aria-label="t('shoppingListDetail.fromDish')"
+          :title="t('shoppingListDetail.fromDish')"
+          class="-ml-2 flex size-6.5 shrink-0 items-center justify-center rounded-full bg-white/22"
+        >
+          <ItemIcon :path="DISH_ICON" :size="15" :stroke-width="2.4" />
+        </span>
+      </button>
+      <button
+        v-if="menuLabel"
+        type="button"
+        data-testid="item-menu-button"
+        class="mr-2 flex size-13 shrink-0 items-center justify-center rounded-full focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-accent"
+        :aria-label="menuLabel"
+        aria-haspopup="dialog"
+        @click="onMenuClick"
+      >
+        <span class="flex size-8 items-center justify-center rounded-full bg-white/45 text-[#8E1F25]">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path :d="MENU_DOTS" />
+          </svg>
+        </span>
+      </button>
+    </div>
   </li>
 </template>

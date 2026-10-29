@@ -35,6 +35,7 @@ Careto is an application that autofill the grocery list based on the user's pref
 - Within a store section, items are sorted alphabetically by their name in the user's language. Each list can have its own order of store sections; a list that never reordered them uses the default order.
 - Bought items are shown in a collapsible "Last used" section, most recently bought first; tapping one puts it back among the items to buy.
 - Swiping an item to the left removes it from the list.
+- Each item to buy has a menu to remove it from the list, change its icon, or move it to another store section. The chosen icon and section belong to that item in that list; they are dropped when the item is removed from the list.
 
 ### Dishes
 
@@ -72,7 +73,7 @@ Careto is an application that autofill the grocery list based on the user's pref
 - The day on which the shopping is made can be set.
 - Name and image of the list can be updated.
 - The user can define for each day of the week if there should be one or two slots.
-- The user can sort the store sections in the list.
+- The user can sort the store sections in the list by dragging them into the order they walk through the shop, and can reset them to the default order. The "Own items" section always comes last.
 
 ### Learning and Planning
 

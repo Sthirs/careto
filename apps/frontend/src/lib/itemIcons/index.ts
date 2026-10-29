@@ -49,6 +49,16 @@ export const SECTION_ICONS: Readonly<Record<string, string>> = {
 /** Icon for custom items (a tag). */
 export const CUSTOM_ITEM_ICON = 'M3 12V4h8l10 10-8 8z M7.5 7.5h.01';
 
-/** The icon for a list item: its own, else its section's, else the tag. */
-export const iconForItem = (catalogItemKey: string | null, sectionKey: string): string =>
-  (catalogItemKey && ITEM_ICONS[catalogItemKey]) || SECTION_ICONS[sectionKey] || CUSTOM_ITEM_ICON;
+/**
+ * The icon for a list item: the chosen one (ADR-0026), else its own, else its
+ * section's, else the tag.
+ */
+export const iconForItem = (
+  catalogItemKey: string | null,
+  sectionKey: string,
+  iconKey: string | null = null,
+): string =>
+  (iconKey && ITEM_ICONS[iconKey]) ||
+  (catalogItemKey && ITEM_ICONS[catalogItemKey]) ||
+  SECTION_ICONS[sectionKey] ||
+  CUSTOM_ITEM_ICON;
