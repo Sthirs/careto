@@ -34,3 +34,6 @@ export function dishArtFor(id: string): DishArt {
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return DISH_ART[hash % DISH_ART.length];
 }
+
+/** Fork and knife: the Dishes tab, and the badge of items to buy for a dish. */
+export const DISH_ICON = 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 21V3c-2 1-3 4-3 7h3';

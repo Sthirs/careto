@@ -23,6 +23,7 @@ export const en = {
     loading: 'Loading…',
     close: 'Close',
     saveChanges: 'Save Changes',
+    undo: 'Undo',
   },
 
   app: {
@@ -110,6 +111,7 @@ export const en = {
     addCustomAria: 'Add {name} as a custom item',
     removedAnnouncement: '{name} removed from the list',
     actionFailed: 'We could not update the list. Try again.',
+    fromDish: 'For a dish',
   },
 
   // Labels of the default item catalog (ADR-0014): keyed by the backend's
@@ -532,8 +534,40 @@ export const en = {
     dishes: 'Dishes',
     week: 'Week',
     settings: 'Settings',
-    // Placeholder body of the sections that are not built yet.
-    comingSoon: 'Coming soon.',
+  },
+
+  week: {
+    loading: 'Loading the week plan...',
+    loadFailed: 'We could not load the week plan.',
+    actionFailed: 'Something went wrong. Please try again.',
+    plannedCount: '{count} of {total} meals planned',
+    newPlan: 'New plan',
+    newPlanTitle: 'Start a new plan?',
+    newPlanBody:
+      'All {count} planned meals will be cleared for everyone on this list. Items already added to the shopping list stay there.',
+    clearAll: 'Clear all',
+    cleared: 'Week plan cleared',
+    addToList: 'Add ingredients to list',
+    adding: 'Adding…',
+    added: 'Added to the list',
+    addedAnnouncement: 'Ingredients of the planned dishes added to the list',
+    meals: { lunch: 'Lunch', dinner: 'Dinner' },
+    // The meal inside a sentence, after the day: "Monday lunch".
+    mealsInText: { lunch: 'lunch', dinner: 'dinner' },
+    slotName: '{day} {meal}',
+    addDish: 'Add a dish',
+    addDishAria: 'Add a dish for {slot}',
+    slotAria: '{slot}: {dish}. Change dish',
+    removeAria: 'Remove {dish} from {slot}',
+    removed: '{dish} removed from {slot}',
+    pickerTitle: 'Dish for {slot}',
+    now: 'Now: {dish}',
+    dishesAria: 'Dishes',
+    removeFromSlot: 'Remove from this slot',
+    searchLabel: 'Search dishes',
+    searchPlaceholder: 'Search dishes…',
+    noMatches: 'No dishes match “{query}”',
+    noDishes: 'No dishes yet. Create one in Dishes.',
   },
 
   dishes: {

@@ -1,11 +1,9 @@
 import { CUSTOM_ITEM_NAME_MAX_LENGTH } from '../../entities/ListCustomItem';
 import { LIST_ITEM_STATUSES, type ListItemStatus } from '../../entities/ListItem';
 import type { AddListItemInput } from '../../services/listItemService';
+import { isUuid } from '../../utils/uuid';
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; message: string };
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Whitelist parse of `POST /lists/:id/items` (ADR-0010 discipline): exactly
@@ -33,7 +31,7 @@ export function parseAddItemBody(body: unknown): Parsed<AddListItemInput> {
   }
 
   if (customItemId !== undefined) {
-    return typeof customItemId === 'string' && UUID_PATTERN.test(customItemId)
+    return isUuid(customItemId)
       ? { ok: true, value: { customItemId } }
       : { ok: false, message: 'customItemId must be a UUID.' };
   }

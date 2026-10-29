@@ -35,6 +35,7 @@ export const it = {
     loading: 'Caricamento…',
     close: 'Chiudi',
     saveChanges: 'Salva modifiche',
+    undo: 'Annulla',
   },
 
   app: {
@@ -112,6 +113,7 @@ export const it = {
     addCustomAria: 'Aggiungi {name} come articolo personalizzato',
     removedAnnouncement: '{name} tolto dalla lista',
     actionFailed: 'Impossibile aggiornare la lista. Riprova.',
+    fromDish: 'Per un piatto',
   },
 
   // Labels of the default item catalog (ADR-0014): keyed by the backend's
@@ -533,7 +535,39 @@ export const it = {
     dishes: 'Piatti',
     week: 'Settimana',
     settings: 'Impostazioni',
-    comingSoon: 'In arrivo.',
+  },
+
+  week: {
+    loading: 'Caricamento del piano settimanale...',
+    loadFailed: 'Non è stato possibile caricare il piano settimanale.',
+    actionFailed: 'Qualcosa è andato storto. Riprova.',
+    plannedCount: '{count} pasti pianificati su {total}',
+    newPlan: 'Nuovo piano',
+    newPlanTitle: 'Iniziare un nuovo piano?',
+    newPlanBody:
+      'Tutti i {count} pasti pianificati verranno cancellati per tutti i membri della lista. Gli articoli già aggiunti alla lista della spesa restano lì.',
+    clearAll: 'Cancella tutto',
+    cleared: 'Piano settimanale cancellato',
+    addToList: 'Aggiungi ingredienti alla lista',
+    adding: 'Aggiunta…',
+    added: 'Aggiunti alla lista',
+    addedAnnouncement: 'Ingredienti dei piatti pianificati aggiunti alla lista',
+    meals: { lunch: 'Pranzo', dinner: 'Cena' },
+    mealsInText: { lunch: 'pranzo', dinner: 'cena' },
+    slotName: '{day} {meal}',
+    addDish: 'Aggiungi un piatto',
+    addDishAria: 'Aggiungi un piatto per {slot}',
+    slotAria: '{slot}: {dish}. Cambia piatto',
+    removeAria: 'Togli {dish} da {slot}',
+    removed: '{dish} tolto da {slot}',
+    pickerTitle: 'Piatto per {slot}',
+    now: 'Ora: {dish}',
+    dishesAria: 'Piatti',
+    removeFromSlot: 'Togli da questo pasto',
+    searchLabel: 'Cerca piatti',
+    searchPlaceholder: 'Cerca piatti…',
+    noMatches: 'Nessun piatto corrisponde a “{query}”',
+    noDishes: 'Ancora nessun piatto. Creane uno in Piatti.',
   },
 
   dishes: {

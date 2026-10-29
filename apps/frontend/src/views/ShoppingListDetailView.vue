@@ -60,6 +60,7 @@ const tileOf = (item: ListItem) => ({
   id: item.id,
   label: labelOf(item),
   icon: iconForItem(item.catalogItemKey, item.sectionKey),
+  fromDish: item.source === 'dish',
 });
 
 const toBuy = computed(() =>
@@ -166,6 +167,7 @@ onMounted(loadShoppingList);
             tone="to-buy"
             :label="tile.label"
             :icon="tile.icon"
+            :from-dish="tile.fromDish"
             :action-label="t('shoppingListDetail.markBoughtAria', { name: tile.label })"
             :described-by="REMOVE_HINT_ID"
             @activate="markBought(tile.id)"

@@ -1,0 +1,104 @@
+import { In } from 'typeorm';
+
+import { WEEK_MEALS, type WeekMeal } from '../../entities/WeekSlot';
+import { putDishOnList } from '../dish/dishListing';
+import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
+import type { WeekPlanRepositories } from './weekPlanRepositories';
+
+export type WeekSlotInput = { weekday: number; meal: WeekMeal; dishId: string };
+export type SerializedWeekPlan = { slots: WeekSlotInput[] };
+
+/** The planned slots of the list, Monday lunch first; no membership check. */
+async function readPlan(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+): Promise<SerializedWeekPlan> {
+  const rows = await repositories.weekSlotRepository.find({ where: { shoppingListId } });
+  const slots = rows
+    .map(({ weekday, meal, dishId }) => ({ weekday, meal, dishId }))
+    .sort((a, b) => a.weekday - b.weekday || WEEK_MEALS.indexOf(a.meal) - WEEK_MEALS.indexOf(b.meal));
+  return { slots };
+}
+
+/** The planned slots of the list, Monday lunch first. */
+export async function getPlan(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+  userId: string,
+): Promise<SerializedWeekPlan> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  return readPlan(repositories, shoppingListId);
+}
+
+/** Throws unless every dish id names a dish of the list. */
+async function assertDishesOfList(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+  dishIds: string[],
+): Promise<void> {
+  const unique = [...new Set(dishIds)];
+  if (unique.length === 0) return;
+  const found = await repositories.dishRepository.count({
+    where: { id: In(unique), shoppingListId },
+  });
+  if (found !== unique.length) throw new Error('Dish not found.');
+}
+
+/** Puts a dish in one slot, or empties it when `dishId` is null. */
+export async function setSlot(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+  slot: { weekday: number; meal: WeekMeal; dishId: string | null },
+  userId: string,
+): Promise<SerializedWeekPlan> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const { weekday, meal, dishId } = slot;
+  if (dishId === null) {
+    await repositories.weekSlotRepository.delete({ shoppingListId, weekday, meal });
+  } else {
+    await assertDishesOfList(repositories, shoppingListId, [dishId]);
+    await repositories.weekSlotRepository.upsert(
+      { shoppingListId, weekday, meal, dishId },
+      { conflictPaths: ['shoppingListId', 'weekday', 'meal'] },
+    );
+  }
+  return readPlan(repositories, shoppingListId);
+}
+
+/** Replaces the whole plan: `[]` starts a new plan, the old slots undo it. */
+export async function replacePlan(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+  slots: WeekSlotInput[],
+  userId: string,
+): Promise<SerializedWeekPlan> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  await assertDishesOfList(
+    repositories,
+    shoppingListId,
+    slots.map((slot) => slot.dishId),
+  );
+  await repositories.replaceSlots(async (table) => {
+    await table.delete({ shoppingListId });
+    if (slots.length > 0) {
+      await table.insert(slots.map((slot) => ({ ...slot, shoppingListId })));
+    }
+  });
+  return readPlan(repositories, shoppingListId);
+}
+
+/**
+ * Adds every planned dish to the list through the dish service (ADR-0024),
+ * once per dish. Dishes already in the list stay as they are.
+ */
+export async function addPlanToList(
+  repositories: WeekPlanRepositories,
+  shoppingListId: string,
+  userId: string,
+): Promise<void> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const { slots } = await readPlan(repositories, shoppingListId);
+  for (const dishId of new Set(slots.map((slot) => slot.dishId))) {
+    await putDishOnList(repositories, shoppingListId, dishId, userId);
+  }
+}

@@ -41,20 +41,30 @@ export function matchScore(label: string, query: string): number | null {
   return foldedLabel.includes(foldedQuery) ? 3 : null;
 }
 
+/** The items matching `query`, best match first, ties by label. */
+export function rankByLabel<T>(
+  items: readonly T[],
+  query: string,
+  labelOf: (item: T) => string,
+  locale: string,
+): T[] {
+  return items
+    .map((item) => {
+      const label = labelOf(item);
+      return { item, label, score: matchScore(label, query) };
+    })
+    .filter((scored): scored is { item: T; label: string; score: number } => scored.score !== null)
+    .sort((a, b) => a.score - b.score || a.label.localeCompare(b.label, locale))
+    .map((scored) => scored.item);
+}
+
 export function searchItems(
   query: string,
   entries: readonly SearchEntry[],
   locale: string,
   limit = DEFAULT_RESULT_LIMIT,
 ): SearchEntry[] {
-  return entries
-    .map((entry) => ({ entry, score: matchScore(entry.label, query) }))
-    .filter((scored): scored is { entry: SearchEntry; score: number } => scored.score !== null)
-    .sort(
-      (a, b) => a.score - b.score || a.entry.label.localeCompare(b.entry.label, locale),
-    )
-    .slice(0, limit)
-    .map((scored) => scored.entry);
+  return rankByLabel(entries, query, (entry) => entry.label, locale).slice(0, limit);
 }
 
 /** True when some entry is exactly what was typed, so no custom row is offered. */

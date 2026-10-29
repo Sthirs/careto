@@ -28,7 +28,7 @@ test('list sections bar: List → Dishes → Week → Settings → List', async 
   await detailPage.openSection('Week');
   await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}/week$`));
   await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
-  await expect(page.getByTestId('section-coming-soon')).toBeVisible();
+  await expect(page.getByTestId('week-planned-count')).toHaveText('0 of 14 meals planned');
 
   await detailPage.openSection('Settings');
   await expect(page).toHaveURL(new RegExp(`/lists/${shoppingListId}/settings$`));

@@ -17,6 +17,7 @@ import { PushSubscription } from '../entities/PushSubscription';
 import { RefreshToken } from '../entities/RefreshToken';
 import { User } from '../entities/User';
 import { UserIdentity } from '../entities/UserIdentity';
+import { WeekSlot } from '../entities/WeekSlot';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -38,6 +39,7 @@ export const AppDataSource = new DataSource({
     Dish,
     DishIngredient,
     ListItemDish,
+    WeekSlot,
   ],
 });
 

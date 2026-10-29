@@ -2,6 +2,8 @@
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 
+import { DISH_ICON } from '@/lib/dishIcons';
+
 export type ListSection = 'list-detail' | 'list-dishes' | 'list-week' | 'list-settings';
 
 defineProps<{
@@ -20,7 +22,7 @@ const { t } = useI18n();
 // Icon paths copied from the design's tab bar (24 × 24 line style).
 const SECTIONS: ReadonlyArray<{ name: ListSection; labelKey: string; path: string }> = [
   { name: 'list-detail', labelKey: 'listSections.list', path: 'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01' },
-  { name: 'list-dishes', labelKey: 'listSections.dishes', path: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 21V3c-2 1-3 4-3 7h3' },
+  { name: 'list-dishes', labelKey: 'listSections.dishes', path: DISH_ICON },
   { name: 'list-week', labelKey: 'listSections.week', path: 'M4 6h16v14H4z M4 10h16 M8 3v4 M16 3v4' },
   { name: 'list-settings', labelKey: 'listSections.settings', path: 'M4 7h10 M18 7h2 M4 17h2 M10 17h10 M16 5v4 M8 15v4' },
 ];
