@@ -9,6 +9,7 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ meta: mockRouteMeta.value }),
   createRouter: (options: any) => ({
     beforeEach: vi.fn(),
+    afterEach: vi.fn(),
   }),
   createWebHistory: () => ({}),
 }));

@@ -71,7 +71,7 @@ onMounted(async () => {
 
 <template>
   <div class="relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
-    <ScreenHeader :title="t('storeSections.title')" :back-label="t('storeSections.backToSettings')" compact @back="goBack">
+    <ScreenHeader :title="t('storeSections.title')" :back-label="t('storeSections.backToSettings')" @back="goBack">
       <template #trailing><AccountAvatarLink /></template>
     </ScreenHeader>
     <p class="mx-5 mt-1 mb-3 text-[15px] leading-[1.4] font-semibold text-text-secondary">{{ t('storeSections.intro') }}</p>
