@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { lastListRedirect, listIdOf, saveLastListId } from '@/lib/lastList';
 import { useAuthStore } from '@/stores/auth';
 
 const LoginView = () => import('@/views/LoginView.vue');
@@ -117,5 +118,12 @@ router.beforeEach(async (to) => {
     return { name: 'shoppingLists' };
   }
 
-  return true;
+  return lastListRedirect(to, authStore.user?.id) ?? true;
+});
+
+router.afterEach((to, _from, failure) => {
+  if (failure) return;
+  const userId = useAuthStore().user?.id;
+  const listId = listIdOf(to);
+  if (userId && listId) saveLastListId(userId, listId);
 });

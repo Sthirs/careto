@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -5,6 +6,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import ShoppingListDetailView from '@/views/ShoppingListDetailView.vue';
 import { i18n } from '@/i18n';
 import { api } from '@/lib/api';
+import { readLastListId, saveLastListId } from '@/lib/lastList';
 
 // The default list payload used by the mocked api.get. Declared as a hoisted
 // function (not a const) so the vi.mock factory can call it even though vi.mock
@@ -175,6 +177,38 @@ describe('ShoppingListDetailView', () => {
 
     expect(wrapper.text()).toContain('We could not load this list.');
     expect(wrapper.find('[data-testid="list-empty"]').exists()).toBe(false);
+  });
+
+  const rejectListAsNotFound = () =>
+    (
+      api.get as unknown as { mockRejectedValueOnce: (value: unknown) => unknown }
+    ).mockRejectedValueOnce(new AxiosError('gone', '404', undefined, undefined, { status: 404 } as never));
+
+  it('forgets a list reopened on launch that no longer exists and shows My lists', async () => {
+    saveLastListId('user-1', 'list-1');
+    Object.defineProperty(window, 'history', {
+      value: { state: { restoredLastList: true } },
+      writable: true,
+      configurable: true,
+    });
+    rejectListAsNotFound();
+    const wrapper = mountShoppingListDetailView();
+    await flushPromises();
+
+    expect(readLastListId('user-1')).toBeNull();
+    expect(mockRouterReplace).toHaveBeenCalledWith({ name: 'shoppingLists' });
+    expect(wrapper.text()).not.toContain('We could not load this list.');
+  });
+
+  it('keeps the load error for a deep link to a list that no longer exists', async () => {
+    saveLastListId('user-1', 'list-1');
+    rejectListAsNotFound();
+    const wrapper = mountShoppingListDetailView();
+    await flushPromises();
+
+    expect(readLastListId('user-1')).toBeNull();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('We could not load this list.');
   });
 
   it('renders the list sections bar with List as the current section', async () => {

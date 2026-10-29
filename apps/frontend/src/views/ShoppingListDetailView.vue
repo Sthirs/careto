@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import axios from 'axios';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -17,7 +18,9 @@ import { useItemSearch, type SearchResult } from '@/composables/useItemSearch';
 import { useListItems } from '@/composables/useListItems';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
+import { clearLastListId } from '@/lib/lastList';
 import { sortLastUsed, sortToBuy } from '@/lib/listItemOrder';
+import { useAuthStore } from '@/stores/auth';
 
 import type { ListItem } from '@/types/listItem';
 import type { ShoppingListDetail } from '@/types/shoppingList';
@@ -28,6 +31,7 @@ const { t, locale } = useI18n();
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const shoppingList = ref<ShoppingListDetail | null>(null);
 const isLoading = ref(true);
@@ -82,7 +86,16 @@ const loadShoppingList = async () => {
     ]);
     shoppingList.value = data.shoppingList;
     title.value = data.shoppingList.name;
-  } catch {
+  } catch (error) {
+    // The list is gone or the user left it: stop reopening it on launch, and
+    // when the launch reopened it, fall back to My lists instead of an error.
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (authStore.user) clearLastListId(authStore.user.id);
+      if (history.state?.restoredLastList) {
+        void router.replace({ name: 'shoppingLists' });
+        return;
+      }
+    }
     errorMessage.value = t('shoppingListDetail.loadFailed');
   } finally {
     isLoading.value = false;

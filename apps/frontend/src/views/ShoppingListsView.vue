@@ -21,7 +21,7 @@ const {
 <template>
   <div class="relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden">
     <header class="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
-      <h1 class="ml-1 text-4xl font-extrabold tracking-[-0.01em]">{{ t('shoppingLists.title') }}</h1>
+      <h1 class="ml-1 text-3xl font-extrabold tracking-[-0.01em]">{{ t('shoppingLists.title') }}</h1>
       <AccountAvatarLink />
     </header>
 
