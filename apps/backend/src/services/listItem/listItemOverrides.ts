@@ -1,4 +1,4 @@
-import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
+import { findMemberListItem } from './listItemMutations';
 import type { ListItemRepositories } from './listItemRepositories';
 import { serializeListItem, type SerializedListItem } from './listItemSerialization';
 
@@ -13,12 +13,7 @@ export async function setListItemOverride(
   override: ListItemOverride,
   userId: string,
 ): Promise<SerializedListItem> {
-  await getShoppingListForMember(repositories, shoppingListId, userId);
-  const item = await repositories.listItemRepository.findOne({
-    where: { id: itemId, shoppingListId },
-    relations: { catalogItem: true, customItem: true },
-  });
-  if (!item) throw new Error('Item not found.');
+  const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
 
   if ('iconKey' in override) item.iconKey = override.iconKey;
   else item.sectionOverrideKey = override.sectionKey;

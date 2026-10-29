@@ -1,3 +1,10 @@
+/** Section of custom items (backend `OWN_ITEMS_SECTION_KEY`); always last, never sortable (ADR-0026). */
+export const OWN_ITEMS_SECTION_KEY = 'own-items';
+
+/** The section keys a member can order or pick: every one except "Own items". */
+export const sortableSectionKeys = (keys: readonly string[]): string[] =>
+  keys.filter((key) => key !== OWN_ITEMS_SECTION_KEY);
+
 /**
  * Moves the entry at `from` so it lands before the entry now at `insertAt`
  * (`insertAt === order.length` puts it last). Returns a new array.

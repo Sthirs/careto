@@ -6,6 +6,7 @@ import BottomSheet from '@/components/BottomSheet.vue';
 import ItemIcon from '@/components/list-items/ItemIcon.vue';
 import ItemIconPicker from '@/components/list-items/ItemIconPicker.vue';
 import ItemSectionPicker from '@/components/list-items/ItemSectionPicker.vue';
+import { OWN_ITEMS_SECTION_KEY, sortableSectionKeys } from '@/lib/sectionOrder';
 
 /** What the item menu shows about the item it was opened for. */
 export type ItemMenuTarget = {
@@ -18,7 +19,6 @@ export type ItemMenuTarget = {
   sectionKey: string;
 };
 
-const OWN_ITEMS = 'own-items';
 const ICON_ACTION = 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M17 14v6 M14 17h6';
 const SECTION_ACTION = 'M8 6h12 M8 12h12 M8 18h12 M3 9l1.5-3L6 9 M3 15l1.5 3L6 15';
 const REMOVE_ACTION = 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v6 M14 11v6';
@@ -63,7 +63,7 @@ const saveSection = (sectionKey: string) => {
 };
 
 const sortedSection = computed(() =>
-  props.target && props.target.sectionKey !== OWN_ITEMS ? props.target.sectionKey : null,
+  props.target && props.target.sectionKey !== OWN_ITEMS_SECTION_KEY ? props.target.sectionKey : null,
 );
 const sectionLabel = computed(() =>
   sortedSection.value ? t(`catalog.sections.${sortedSection.value}`) : t('itemMenu.notSorted'),
@@ -72,7 +72,7 @@ const kind = computed(() => {
   const base = props.target?.isCustom ? t('itemMenu.customItem') : t('itemMenu.catalogItem');
   return sortedSection.value ? `${base} · ${sectionLabel.value}` : base;
 });
-const sectionKeys = computed(() => props.sectionOrder.filter((key) => key !== OWN_ITEMS));
+const sectionKeys = computed(() => sortableSectionKeys(props.sectionOrder));
 const label = computed(() => {
   const name = props.target?.name ?? '';
   if (view.value === 'icon') return t('itemMenu.iconTitle', { name });

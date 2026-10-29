@@ -72,6 +72,8 @@ export function useSectionDrag(
     dragIndex.value = null;
     overIndex.value = null;
     dragY.value = 0;
+    // A cancelled drag (scroll takeover, system gesture) drops nothing.
+    if (event.type === 'pointercancel') return;
     if (from !== null && to !== null && to !== from && to !== from + 1) onDrop(from, to);
   };
 

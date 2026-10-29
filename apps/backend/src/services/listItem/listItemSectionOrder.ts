@@ -1,4 +1,4 @@
-import { OWN_ITEMS_SECTION_KEY } from '../catalog/catalogData';
+import { CATALOG_SECTIONS, OWN_ITEMS_SECTION_KEY } from '../catalog/catalogData';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import { getSectionOrder } from './listItemQueries';
 import type { ListItemRepositories } from './listItemRepositories';
@@ -37,7 +37,7 @@ export async function replaceListSectionOrder(
       sectionKeys.map((sectionKey, position) => ({ shoppingListId, sectionKey, position })),
     );
   });
-  return sortableOrder(repositories, shoppingListId);
+  return { sectionKeys: [...sectionKeys] };
 }
 
 /** Drops the list's own order, so it follows the default again. */
@@ -48,5 +48,5 @@ export async function resetListSectionOrder(
 ): Promise<SectionOrderView> {
   await getShoppingListForMember(repositories, shoppingListId, userId);
   await repositories.sectionOrderRepository.delete({ shoppingListId });
-  return sortableOrder(repositories, shoppingListId);
+  return { sectionKeys: CATALOG_SECTIONS.map((section) => section.key) };
 }

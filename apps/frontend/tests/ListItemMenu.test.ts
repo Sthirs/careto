@@ -127,6 +127,22 @@ describe('list item ⋮ menu', () => {
     expect(menu?.textContent).toContain('Not sorted yet');
   });
 
+  it('opens on the first tap after a swipe that snapped back', async () => {
+    const wrapper = await mountView();
+    const tile = wrapper.findAll('[data-testid="list-item"]').find((candidate) => candidate.text().includes('Kombucha'))!;
+    await tile.trigger('pointerdown', { pointerId: 1, clientX: 280, clientY: 10, pointerType: 'touch' });
+    await tile.trigger('pointermove', { pointerId: 1, clientX: 240, clientY: 12, pointerType: 'touch' });
+    await tile.trigger('pointerup', { pointerId: 1, clientX: 240, clientY: 12, pointerType: 'touch' });
+    // The click that ends the swipe goes to the captured <li>, not to a button.
+    await tile.trigger('click');
+
+    await tile.trigger('pointerdown', { pointerId: 2, clientX: 300, clientY: 10, pointerType: 'touch' });
+    await tile.trigger('pointerup', { pointerId: 2, clientX: 300, clientY: 10, pointerType: 'touch' });
+    await openMenu('Kombucha');
+
+    expect(body().querySelector('[data-testid="item-menu"]')?.textContent).toContain('Kombucha');
+  });
+
   it('removes the item from the list', async () => {
     vi.mocked(api.delete).mockResolvedValue({ data: {} });
     await mountView();
@@ -160,6 +176,8 @@ describe('list item ⋮ menu', () => {
     expect(choices.every((choice) => choice.title.toLowerCase().includes('coff'))).toBe(true);
     choices.find((choice) => choice.title === 'Coffee')!.click();
     await flushPromises();
+    const pressed = body().querySelectorAll<HTMLButtonElement>('[data-testid="icon-choice"][aria-pressed="true"]');
+    expect(Array.from(pressed, (choice) => choice.title)).toEqual(['Coffee']);
     button('Save icon').click();
     await flushPromises();
 

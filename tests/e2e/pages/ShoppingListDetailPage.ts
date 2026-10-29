@@ -96,9 +96,24 @@ export class ShoppingListDetailPage {
     await this.itemMenu().waitFor();
   }
 
+  /**
+   * The list updates before the server answers; wait for the item write so a
+   * reload right after sees it.
+   */
+  private itemWritten(method: 'PATCH' | 'DELETE') {
+    return this.page.waitForResponse(
+      (response) =>
+        response.request().method() === method &&
+        /\/api\/lists\/[^/]+\/items\/[^/]+$/.test(new URL(response.url()).pathname) &&
+        response.ok(),
+    );
+  }
+
   async removeViaMenu(itemName: string): Promise<void> {
     await this.openItemMenu(itemName);
+    const removed = this.itemWritten('DELETE');
     await this.itemMenu().getByRole('button', { name: 'Remove from list' }).click();
+    await removed;
   }
 
   async changeIcon(itemName: string, iconSearch: string, iconLabel: string): Promise<void> {
@@ -106,7 +121,9 @@ export class ShoppingListDetailPage {
     await this.itemMenu().getByRole('button', { name: 'Change icon' }).click();
     await this.itemMenu().getByRole('textbox', { name: 'Search icons' }).fill(iconSearch);
     await this.itemMenu().getByTitle(iconLabel, { exact: true }).click();
+    const saved = this.itemWritten('PATCH');
     await this.itemMenu().getByRole('button', { name: 'Save icon' }).click();
+    await saved;
     await this.closeItemMenuFromActions();
   }
 
@@ -114,7 +131,9 @@ export class ShoppingListDetailPage {
     await this.openItemMenu(itemName);
     await this.itemMenu().getByRole('button', { name: /^Store section/ }).click();
     await this.itemMenu().getByRole('radio', { name: sectionLabel }).click();
+    const saved = this.itemWritten('PATCH');
     await this.itemMenu().getByRole('button', { name: 'Save section' }).click();
+    await saved;
     await this.closeItemMenuFromActions();
   }
 

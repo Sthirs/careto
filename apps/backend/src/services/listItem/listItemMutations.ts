@@ -16,6 +16,22 @@ export type AddListItemResult = { item: SerializedListItem; created: boolean };
 
 const ITEM_RELATIONS = { catalogItem: true, customItem: true } as const;
 
+/** Loads an item of a list the user is a member of, with what serializing needs. */
+export async function findMemberListItem(
+  repositories: ListItemRepositories,
+  shoppingListId: string,
+  itemId: string,
+  userId: string,
+): Promise<ListItem> {
+  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const item = await repositories.listItemRepository.findOne({
+    where: { id: itemId, shoppingListId },
+    relations: ITEM_RELATIONS,
+  });
+  if (!item) throw new Error('Item not found.');
+  return item;
+}
+
 /** An un-buy this soon after the buy undoes a mistaken tap (ADR-0024). */
 export const UNBUY_GRACE_MS = 5 * 60_000;
 
@@ -173,12 +189,7 @@ export async function setListItemStatus(
   status: ListItemStatus,
   userId: string,
 ): Promise<SerializedListItem> {
-  await getShoppingListForMember(repositories, shoppingListId, userId);
-  const item = await repositories.listItemRepository.findOne({
-    where: { id: itemId, shoppingListId },
-    relations: ITEM_RELATIONS,
-  });
-  if (!item) throw new Error('Item not found.');
+  const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
 
   if (status === 'to_buy' && item.status === 'bought') {
     const boughtAt = item.lastBoughtAt;

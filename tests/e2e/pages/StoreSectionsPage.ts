@@ -1,5 +1,7 @@
 import { type Page } from '@playwright/test';
 
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * StoreSectionsPage — page object for /lists/:id/settings/sections
  * (StoreSectionsView.vue, ADR-0026).
@@ -19,7 +21,7 @@ export class StoreSectionsPage {
   }
 
   grip(sectionName: string) {
-    return this.list().getByRole('button', { name: new RegExp(`^Move ${sectionName.replace('&', '\\&')},`) });
+    return this.list().getByRole('button', { name: new RegExp(`^Move ${escapeRegExp(sectionName)},`) });
   }
 
   async moveUpWithKeyboard(sectionName: string, times = 1): Promise<void> {

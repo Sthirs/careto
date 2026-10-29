@@ -49,6 +49,9 @@ const onPointerDown = (event: PointerEvent) => {
   startY = event.clientY;
   width = (event.currentTarget as HTMLElement).offsetWidth;
   axis = null;
+  // The click after a swipe can land on the captured <li> instead of a
+  // button, leaving the flag set; a new gesture must not inherit it.
+  swallowClick = false;
 };
 
 const onPointerMove = (event: PointerEvent) => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { iconForItem, ITEM_ICONS, SECTION_ICONS } from '@/lib/itemIcons';
-import { insertionIndex, moveBefore, sameOrder } from '@/lib/sectionOrder';
+import { insertionIndex, moveBefore, sameOrder, sortableSectionKeys } from '@/lib/sectionOrder';
 
 describe('moveBefore', () => {
   const order = ['a', 'b', 'c', 'd'];
@@ -31,6 +31,12 @@ describe('sameOrder', () => {
   it('compares position by position', () => {
     expect(sameOrder(['a', 'b'], ['a', 'b'])).toBe(true);
     expect(sameOrder(['a', 'b'], ['b', 'a'])).toBe(false);
+  });
+});
+
+describe('sortableSectionKeys', () => {
+  it('leaves out Own items and keeps the order', () => {
+    expect(sortableSectionKeys(['milk-cheese', 'own-items', 'beverages'])).toEqual(['milk-cheese', 'beverages']);
   });
 });
 

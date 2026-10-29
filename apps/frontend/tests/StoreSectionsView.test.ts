@@ -115,6 +115,22 @@ describe('StoreSectionsView', () => {
     expect(rows(wrapper)).toEqual(['beverages', 'milk-cheese', 'fruits-vegetables']);
   });
 
+  it('keeps the order when the browser cancels a drag', async () => {
+    const wrapper = await mountView();
+    const before = rows(wrapper);
+    wrapper.findAll('[data-testid="store-section"]').forEach((row, index) => {
+      vi.spyOn(row.element, 'getBoundingClientRect').mockReturnValue({ top: index * 70, height: 64 } as DOMRect);
+    });
+
+    const list = wrapper.find('[data-testid="store-sections"]');
+    await grip(wrapper, 'beverages').trigger('pointerdown', { pointerId: 1, clientY: 170, button: 0, pointerType: 'mouse' });
+    await list.trigger('pointermove', { pointerId: 1, clientY: 10 });
+    await list.trigger('pointercancel', { pointerId: 1, clientY: 10 });
+
+    expect(rows(wrapper)).toEqual(before);
+    expect(wrapper.find('[data-testid="drop-line"]').exists()).toBe(false);
+  });
+
   it('saves the default order by resetting it', async () => {
     vi.mocked(api.delete).mockResolvedValue({ data: { sectionKeys: DEFAULT } });
     const wrapper = await mountView();

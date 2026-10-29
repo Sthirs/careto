@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 
@@ -7,7 +8,9 @@ import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
 import ListCoverPicker from '@/components/list-settings/ListCoverPicker.vue';
 import MemberInviteForm from '@/components/list-settings/MemberInviteForm.vue';
 import MemberList from '@/components/list-settings/MemberList.vue';
+import { useItemCatalog } from '@/composables/useItemCatalog';
 import { useShoppingListSettings } from '@/composables/useShoppingListSettings';
+import { sortableSectionKeys } from '@/lib/sectionOrder';
 import type { ShoppingListDetail } from '@/types/shoppingList';
 
 const props = defineProps<{
@@ -21,8 +24,14 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const SECTIONS_ICON = 'M8 6h12 M8 12h12 M8 18h12 M3 9l1.5-3L6 9 M3 15l1.5 3L6 15';
-/** The 13 catalog sections; "Own items" is not sortable (ADR-0026). */
-const SORTABLE_SECTION_COUNT = 13;
+
+// "Own items" is not sortable (ADR-0026), so it is not counted.
+const { catalog, loadCatalog } = useItemCatalog();
+const sortableSectionCount = computed(() =>
+  catalog.value ? sortableSectionKeys(catalog.value.sections.map((section) => section.key)).length : null,
+);
+// The count is a hint: the link still works without the catalog.
+onMounted(() => loadCatalog().catch(() => {}));
 
 const {
   isCurrentUser,
@@ -112,8 +121,8 @@ const {
         <ItemIcon :path="SECTIONS_ICON" :size="26" :stroke-width="2" />
         <span class="flex flex-1 flex-col">
           <span class="text-lg font-extrabold">{{ t('shoppingListSettings.storeSections') }}</span>
-          <span class="text-sm font-semibold text-[#C4CDD4]">
-            {{ t('shoppingListSettings.storeSectionsHint', { count: SORTABLE_SECTION_COUNT }) }}
+          <span v-if="sortableSectionCount !== null" class="text-sm font-semibold text-[#C4CDD4]">
+            {{ t('shoppingListSettings.storeSectionsHint', { count: sortableSectionCount }) }}
           </span>
         </span>
         <ItemIcon path="M9 6l6 6-6 6" :size="20" :stroke-width="2.4" class="text-[#C4CDD4]" />

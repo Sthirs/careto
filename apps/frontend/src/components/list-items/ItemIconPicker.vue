@@ -52,14 +52,14 @@ const save = () => {
       {{ t('itemMenu.noIcons', { query: query.trim() }) }}
     </p>
     <ul
-      role="listbox"
       :aria-label="t('itemMenu.iconsAria')"
       class="m-0 grid min-h-0 flex-1 list-none grid-cols-4 content-start gap-2 overflow-y-auto p-0 pr-1"
     >
-      <li v-for="icon in icons" :key="icon.key" role="option" :aria-selected="icon.key === picked">
+      <li v-for="icon in icons" :key="icon.key">
         <button
           type="button"
           data-testid="icon-choice"
+          :aria-pressed="icon.key === picked"
           :title="icon.label"
           class="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-[14px] border-3 p-1 text-white focus-visible:outline-3 focus-visible:outline-accent"
           :class="icon.key === picked ? 'border-accent bg-brand-500' : 'border-transparent bg-surface'"

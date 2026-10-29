@@ -2,9 +2,7 @@ import { computed, ref } from 'vue';
 
 import { useItemCatalog } from '@/composables/useItemCatalog';
 import { api } from '@/lib/api';
-import { moveBefore, sameOrder } from '@/lib/sectionOrder';
-
-const OWN_ITEMS = 'own-items';
+import { moveBefore, sameOrder, sortableSectionKeys } from '@/lib/sectionOrder';
 
 type SectionOrderResponse = { sectionKeys: string[] };
 
@@ -19,7 +17,7 @@ export function useStoreSections(shoppingListId: () => string) {
   const path = () => `/lists/${shoppingListId()}/section-order`;
 
   const defaultOrder = computed(() =>
-    (catalog.value?.sections ?? []).map((section) => section.key).filter((key) => key !== OWN_ITEMS),
+    sortableSectionKeys((catalog.value?.sections ?? []).map((section) => section.key)),
   );
   const itemCounts = computed(() => {
     const counts = new Map<string, number>();

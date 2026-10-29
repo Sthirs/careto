@@ -20,6 +20,7 @@ under `own-items` for a custom item.
 The design canvas ("Careto", boards *List settings*, *Store sections*,
 *Store sections · dragging*, *List*, *List · change item icon* and
 *List · change item section*) shows:
+
 - a Store sections screen with drag handles, arrow-key moves, a reset action
   and a Save order button;
 - an item sheet with Change icon, Store section and Remove from list;

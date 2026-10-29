@@ -8,6 +8,7 @@ import { QueryFailedError } from 'typeorm';
 
 vi.mock('../src/db/data-source', () => ({ AppDataSource: { getRepository: vi.fn() } }));
 
+import { CATALOG_SECTIONS, OWN_ITEMS_SECTION_KEY } from '../src/services/catalog/catalogData';
 import type { ListItemRepositories } from '../src/services/listItem/listItemRepositories';
 import {
   addListItem,
@@ -312,19 +313,7 @@ describe('setListItemOverride', () => {
 });
 
 describe('section order writes', () => {
-  beforeEach(() => {
-    repos.catalogSectionRepository.find.mockResolvedValue([
-      { key: 'fruits-vegetables' },
-      { key: 'milk-cheese' },
-      { key: 'own-items' },
-    ]);
-  });
-
-  it('replaces every row in one transaction and leaves own-items out of the answer', async () => {
-    repos.sectionOrderRepository.find.mockResolvedValue([
-      { sectionKey: 'milk-cheese' },
-      { sectionKey: 'fruits-vegetables' },
-    ]);
+  it('replaces every row in one transaction and answers the saved order', async () => {
     const view = await replaceListSectionOrder(r(), 'list-1', ['milk-cheese', 'fruits-vegetables'], 'u1');
     expect(orderTx.delete).toHaveBeenCalledWith({ shoppingListId: 'list-1' });
     expect(orderTx.insert).toHaveBeenCalledWith([
@@ -332,13 +321,15 @@ describe('section order writes', () => {
       { shoppingListId: 'list-1', sectionKey: 'fruits-vegetables', position: 1 },
     ]);
     expect(view).toEqual({ sectionKeys: ['milk-cheese', 'fruits-vegetables'] });
+    expect(repos.sectionOrderRepository.find).not.toHaveBeenCalled();
   });
 
-  it('reset deletes the list rows', async () => {
-    repos.sectionOrderRepository.find.mockResolvedValue([]);
+  it('reset deletes the list rows and answers the default order without own-items', async () => {
     const view = await resetListSectionOrder(r(), 'list-1', 'u1');
     expect(repos.sectionOrderRepository.delete).toHaveBeenCalledWith({ shoppingListId: 'list-1' });
-    expect(view).toEqual({ sectionKeys: ['fruits-vegetables', 'milk-cheese'] });
+    expect(view).toEqual({ sectionKeys: CATALOG_SECTIONS.map((section) => section.key) });
+    expect(view.sectionKeys).not.toContain(OWN_ITEMS_SECTION_KEY);
+    expect(repos.sectionOrderRepository.find).not.toHaveBeenCalled();
   });
 
   it('rejects non-members before writing', async () => {
