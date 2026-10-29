@@ -1,4 +1,4 @@
-import type { Repository } from 'typeorm';
+import type { EntityManager, Repository } from 'typeorm';
 
 import { AppDataSource } from '../../db/data-source';
 import { CatalogItem } from '../../entities/CatalogItem';
@@ -23,7 +23,14 @@ export type ListItemRepositories = ShoppingListRepositories & {
   listItemRepository: Repository<ListItem>;
   listItemDishRepository: Repository<ListItemDish>;
   sectionOrderRepository: Repository<ListSectionOrder>;
+  /** Runs `work` on the section order table inside one transaction. */
+  replaceSectionOrder: (
+    work: (orders: Repository<ListSectionOrder>) => Promise<void>,
+  ) => Promise<void>;
 };
+
+const ordersOf = (manager: Pick<EntityManager, 'getRepository'>) =>
+  manager.getRepository(ListSectionOrder);
 
 export function createListItemRepositories(): ListItemRepositories {
   return {
@@ -33,6 +40,7 @@ export function createListItemRepositories(): ListItemRepositories {
     customItemRepository: AppDataSource.getRepository(ListCustomItem),
     listItemRepository: AppDataSource.getRepository(ListItem),
     listItemDishRepository: AppDataSource.getRepository(ListItemDish),
-    sectionOrderRepository: AppDataSource.getRepository(ListSectionOrder),
+    sectionOrderRepository: ordersOf(AppDataSource),
+    replaceSectionOrder: (work) => AppDataSource.transaction((manager) => work(ordersOf(manager))),
   };
 }

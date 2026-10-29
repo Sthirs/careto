@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import AccountAvatarLink from '@/components/AccountAvatarLink.vue';
+import ItemMenuSheet from '@/components/list-items/ItemMenuSheet.vue';
 import ItemSearchField from '@/components/list-items/ItemSearchField.vue';
 import ItemSearchResults from '@/components/list-items/ItemSearchResults.vue';
 import LastUsedSection from '@/components/list-items/LastUsedSection.vue';
@@ -11,11 +12,11 @@ import ListItemTile from '@/components/list-items/ListItemTile.vue';
 import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
 import ScreenHeader from '@/components/ScreenHeader.vue';
 import { useItemCatalog } from '@/composables/useItemCatalog';
+import { tileIconOf, useItemMenu } from '@/composables/useItemMenu';
 import { useItemSearch, type SearchResult } from '@/composables/useItemSearch';
 import { useListItems } from '@/composables/useListItems';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
-import { iconForItem } from '@/lib/itemIcons';
 import { sortLastUsed, sortToBuy } from '@/lib/listItemOrder';
 
 import type { ListItem } from '@/types/listItem';
@@ -41,7 +42,7 @@ const title = ref<string>(history.state?.shoppingListName ? String(history.state
 const shoppingListId = computed(() => route.params.id as string);
 
 const { catalog, loadCatalog } = useItemCatalog();
-const { items, customItems, sectionOrder, loadItems, addItem, setStatus, removeItem } =
+const { items, customItems, sectionOrder, loadItems, addItem, setStatus, removeItem, setOverride } =
   useListItems(() => shoppingListId.value);
 const toBuyKeys = computed(
   () =>
@@ -59,7 +60,7 @@ const labelOf = (item: ListItem) =>
 const tileOf = (item: ListItem) => ({
   id: item.id,
   label: labelOf(item),
-  icon: iconForItem(item.catalogItemKey, item.sectionKey),
+  icon: tileIconOf(item),
   fromDish: item.source === 'dish',
 });
 
@@ -116,6 +117,11 @@ const remove = (id: string) => {
   void runAction(() => removeItem(item));
 };
 
+const menu = useItemMenu(items, labelOf, {
+  remove,
+  setOverride: (item, override) => void runAction(() => setOverride(item, override)),
+});
+
 const pick = (result: SearchResult) => {
   query.value = '';
   void runAction(() => addItem(result.input));
@@ -170,8 +176,10 @@ onMounted(loadShoppingList);
             :from-dish="tile.fromDish"
             :action-label="t('shoppingListDetail.markBoughtAria', { name: tile.label })"
             :described-by="REMOVE_HINT_ID"
+            :menu-label="t('shoppingListDetail.moreOptionsAria', { name: tile.label })"
             @activate="markBought(tile.id)"
             @remove="remove(tile.id)"
+            @menu="menu.open(tile.id)"
           />
         </ul>
         <LastUsedSection
@@ -206,5 +214,15 @@ onMounted(loadShoppingList);
       <ItemSearchResults v-if="isSearching" :results="results" @pick="pick" />
       <ItemSearchField v-if="shoppingList" v-model="query" />
     </ListSectionsDock>
+
+    <ItemMenuSheet
+      :open="menu.isOpen.value"
+      :target="menu.target.value"
+      :section-order="sectionOrder"
+      @close="menu.close"
+      @remove="menu.remove"
+      @save-icon="menu.saveIcon"
+      @save-section="menu.saveSection"
+    />
   </div>
 </template>

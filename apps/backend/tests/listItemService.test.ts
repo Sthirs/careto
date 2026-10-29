@@ -8,6 +8,7 @@ import { QueryFailedError } from 'typeorm';
 
 vi.mock('../src/db/data-source', () => ({ AppDataSource: { getRepository: vi.fn() } }));
 
+import { CATALOG_SECTIONS, OWN_ITEMS_SECTION_KEY } from '../src/services/catalog/catalogData';
 import type { ListItemRepositories } from '../src/services/listItem/listItemRepositories';
 import {
   addListItem,
@@ -15,7 +16,13 @@ import {
   removeListItem,
   setListItemStatus,
 } from '../src/services/listItem/listItemMutations';
+import { setListItemOverride } from '../src/services/listItem/listItemOverrides';
 import { getSectionOrder } from '../src/services/listItem/listItemQueries';
+import {
+  replaceListSectionOrder,
+  resetListSectionOrder,
+} from '../src/services/listItem/listItemSectionOrder';
+import { serializeListItem } from '../src/services/listItem/listItemSerialization';
 
 const memberQuery = {
   innerJoin: vi.fn().mockReturnThis(),
@@ -36,7 +43,11 @@ const repo = () => ({
   count: vi.fn(),
 });
 
-let repos: Record<string, ReturnType<typeof repo>> & { shoppingListRepository: unknown };
+let repos: Record<string, ReturnType<typeof repo>> & {
+  shoppingListRepository: unknown;
+  replaceSectionOrder: unknown;
+};
+const orderTx = { delete: vi.fn(), insert: vi.fn() };
 
 const uniqueViolation = () =>
   new QueryFailedError('INSERT', [], Object.assign(new Error('dup'), { code: '23505' }));
@@ -55,6 +66,7 @@ beforeEach(() => {
     listItemRepository: repo(),
     listItemDishRepository: repo(),
     sectionOrderRepository: repo(),
+    replaceSectionOrder: vi.fn(async (work: (orders: typeof orderTx) => Promise<void>) => work(orderTx)),
   };
 });
 
@@ -256,5 +268,73 @@ describe('getSectionOrder', () => {
 describe('normalizeCustomName', () => {
   it('trims and collapses whitespace', () => {
     expect(normalizeCustomName('  Oat   drink ')).toBe('Oat drink');
+  });
+});
+
+describe('serializeListItem overrides', () => {
+  it('sorts under the override and keeps the default section', () => {
+    const serialized = serializeListItem(
+      row({ iconKey: 'coffee', sectionOverrideKey: 'beverages' }) as never,
+    );
+    expect(serialized).toMatchObject({
+      sectionKey: 'beverages',
+      defaultSectionKey: 'milk-cheese',
+      iconKey: 'coffee',
+    });
+  });
+
+  it('files a custom item without override under own-items', () => {
+    const serialized = serializeListItem(
+      row({ catalogItemKey: null, catalogItem: null, customItem: { id: 'c1', name: 'Kombucha' } }) as never,
+    );
+    expect(serialized).toMatchObject({ sectionKey: 'own-items', defaultSectionKey: 'own-items', iconKey: null });
+  });
+});
+
+describe('setListItemOverride', () => {
+  it('sets the icon only', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ iconKey: null, sectionOverrideKey: null }));
+    const item = await setListItemOverride(r(), 'list-1', 'item-1', { iconKey: 'coffee' }, 'u1');
+    expect(item).toMatchObject({ iconKey: 'coffee', sectionKey: 'milk-cheese' });
+  });
+
+  it('sets and clears the section', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ sectionOverrideKey: 'beverages' }));
+    const item = await setListItemOverride(r(), 'list-1', 'item-1', { sectionKey: null }, 'u1');
+    expect(item.sectionKey).toBe('milk-cheese');
+  });
+
+  it('404s for an item of another list', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(null);
+    await expect(
+      setListItemOverride(r(), 'list-1', 'item-1', { iconKey: 'coffee' }, 'u1'),
+    ).rejects.toThrow('Item not found.');
+  });
+});
+
+describe('section order writes', () => {
+  it('replaces every row in one transaction and answers the saved order', async () => {
+    const view = await replaceListSectionOrder(r(), 'list-1', ['milk-cheese', 'fruits-vegetables'], 'u1');
+    expect(orderTx.delete).toHaveBeenCalledWith({ shoppingListId: 'list-1' });
+    expect(orderTx.insert).toHaveBeenCalledWith([
+      { shoppingListId: 'list-1', sectionKey: 'milk-cheese', position: 0 },
+      { shoppingListId: 'list-1', sectionKey: 'fruits-vegetables', position: 1 },
+    ]);
+    expect(view).toEqual({ sectionKeys: ['milk-cheese', 'fruits-vegetables'] });
+    expect(repos.sectionOrderRepository.find).not.toHaveBeenCalled();
+  });
+
+  it('reset deletes the list rows and answers the default order without own-items', async () => {
+    const view = await resetListSectionOrder(r(), 'list-1', 'u1');
+    expect(repos.sectionOrderRepository.delete).toHaveBeenCalledWith({ shoppingListId: 'list-1' });
+    expect(view).toEqual({ sectionKeys: CATALOG_SECTIONS.map((section) => section.key) });
+    expect(view.sectionKeys).not.toContain(OWN_ITEMS_SECTION_KEY);
+    expect(repos.sectionOrderRepository.find).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-members before writing', async () => {
+    memberQuery.getOne.mockResolvedValue(null);
+    await expect(replaceListSectionOrder(r(), 'list-1', [], 'u1')).rejects.toThrow(/not found/);
+    expect(orderTx.insert).not.toHaveBeenCalled();
   });
 });

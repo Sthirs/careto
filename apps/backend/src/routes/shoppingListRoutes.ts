@@ -12,7 +12,15 @@ import {
   updateDishImage,
   updateDishPause,
 } from '../controllers/dishController';
-import { addItem, listItems, removeItem, updateItemStatus } from '../controllers/listItemController';
+import {
+  addItem,
+  getSectionOrder,
+  listItems,
+  removeItem,
+  replaceSectionOrder,
+  resetSectionOrder,
+  updateItem,
+} from '../controllers/listItemController';
 import {
   addWeekPlanToList,
   getWeekPlan,
@@ -41,8 +49,11 @@ shoppingListRouter.post('/:id/invitations/:invitationId/decline', ...authed, dec
 shoppingListRouter.delete('/:id/invitations/:invitationId', ...authed, cancelInvitation);
 shoppingListRouter.get('/:id/items', ...authed, listItems);
 shoppingListRouter.post('/:id/items', ...authed, addItem);
-shoppingListRouter.patch('/:id/items/:itemId', ...authed, updateItemStatus);
+shoppingListRouter.patch('/:id/items/:itemId', ...authed, updateItem);
 shoppingListRouter.delete('/:id/items/:itemId', ...authed, removeItem);
+shoppingListRouter.get('/:id/section-order', ...authed, getSectionOrder);
+shoppingListRouter.put('/:id/section-order', ...authed, replaceSectionOrder);
+shoppingListRouter.delete('/:id/section-order', ...authed, resetSectionOrder);
 shoppingListRouter.get('/:id/dishes', ...authed, listDishes);
 shoppingListRouter.post('/:id/dishes', ...authed, createDish);
 shoppingListRouter.get('/:id/dishes/:dishId', ...authed, getDish);

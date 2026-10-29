@@ -25,7 +25,9 @@ const listItem = (overrides: Partial<ListItem>): ListItem => ({
   catalogItemKey: 'pineapple',
   customItem: null,
   sectionKey: 'fruits-vegetables',
+  iconKey: null,
   ...overrides,
+  defaultSectionKey: overrides.defaultSectionKey ?? overrides.sectionKey ?? 'fruits-vegetables',
 });
 
 let itemsPayload: { sectionOrder: string[]; items: ListItem[]; customItems: unknown[] };

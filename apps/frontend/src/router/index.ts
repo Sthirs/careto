@@ -9,6 +9,7 @@ const ShoppingListsView = () => import('@/views/ShoppingListsView.vue');
 const ShoppingListDetailView = () => import('@/views/ShoppingListDetailView.vue');
 const AccountView = () => import('@/views/AccountView.vue');
 const ShoppingListSettingsView = () => import('@/views/ShoppingListSettingsView.vue');
+const StoreSectionsView = () => import('@/views/StoreSectionsView.vue');
 const WeekView = () => import('@/views/WeekView.vue');
 const DishesView = () => import('@/views/DishesView.vue');
 const DishFormView = () => import('@/views/DishFormView.vue');
@@ -77,6 +78,12 @@ export const router = createRouter({
       name: 'list-settings',
       component: ShoppingListSettingsView,
       meta: { requiresAuth: true, title: 'List Settings', hideTopbar: true },
+    },
+    {
+      path: '/lists/:id/settings/sections',
+      name: 'list-store-sections',
+      component: StoreSectionsView,
+      meta: { requiresAuth: true, title: 'Store sections', hideTopbar: true },
     },
     {
       path: '/account',

@@ -3,5 +3,10 @@ export {
   getCatalog,
   listItems,
   removeItem,
-  updateItemStatus,
+  updateItem,
 } from './listItem/listItemHandlers';
+export {
+  getSectionOrder,
+  replaceSectionOrder,
+  resetSectionOrder,
+} from './listItem/sectionOrderHandlers';

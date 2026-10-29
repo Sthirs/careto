@@ -29,8 +29,9 @@ The forces at play:
    identifiers are German words, which mean nothing in this product. It also
    holds a brand entry and two pairs of duplicates ("Mushrooms", "Tuna").
 3. **Schema management.** Per [`ADR-0004`](0004-postgresql-and-schema-management.md)
-   the schema comes from TypeORM entities with `synchronize`. Production runs
-   `DB_SYNC=false`, and new tables are created by hand there.
+   the schema comes from TypeORM entities with `synchronize`. `DB_SYNC`
+   defaults to `true`, production included. Only where an operator sets
+   `DB_SYNC=false` are new tables created by hand.
 4. **Module size.** [`ADR-0017`](0017-module-size-ceiling-and-split-convention.md)
    sets a 250-line ceiling. Only `en.ts`/`it.ts` are exempt.
 
@@ -141,7 +142,7 @@ as one row per item per list.
     it would have to send keys and let the client resolve them.
   - The catalog keys must stay in step between backend and frontend, which the
     coverage test enforces.
-- **Production DDL** (prod runs `DB_SYNC=false`). Create these tables once,
+- **Manual DDL** (only where `DB_SYNC=false`). Create these tables once,
   before deploying, matching the entities:
 
   ```sql

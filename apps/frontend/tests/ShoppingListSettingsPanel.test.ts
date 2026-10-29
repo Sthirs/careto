@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount, RouterLinkStub } from '@vue/test-utils';
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 import ShoppingListSettingsPanel from '@/components/ShoppingListSettingsPanel.vue';
+import { resetItemCatalogCache } from '@/composables/useItemCatalog';
 import { i18n } from '@/i18n';
 import type { ShoppingListDetail } from '@/types/shoppingList';
 
@@ -10,8 +11,15 @@ import type { ShoppingListDetail } from '@/types/shoppingList';
 const mockApiPatch = vi.fn().mockResolvedValue({ data: {} });
 const mockApiPost = vi.fn().mockResolvedValue({ data: { invitation: {} } });
 const mockApiDelete = vi.fn().mockResolvedValue({ data: undefined });
+const mockApiGet = vi.fn().mockResolvedValue({
+  data: {
+    sections: [{ key: 'fruits-vegetables' }, { key: 'milk-cheese' }, { key: 'own-items' }],
+    items: [],
+  },
+});
 vi.mock('@/lib/api', () => ({
   api: {
+    get: (...args: unknown[]) => mockApiGet(...args),
     patch: (...args: unknown[]) => mockApiPatch(...args),
     post: (...args: unknown[]) => mockApiPost(...args),
     delete: (...args: unknown[]) => mockApiDelete(...args),
@@ -68,6 +76,19 @@ describe('ShoppingListSettingsPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    resetItemCatalogCache();
+  });
+
+  it('links to the Store sections screen of the list, counting the sortable sections', async () => {
+    const wrapper = mountComponent();
+    await flushPromises();
+    const link = wrapper.findAllComponents(RouterLinkStub).find((candidate) =>
+      candidate.text().includes('Store sections'),
+    );
+
+    expect(link?.props('to')).toEqual({ name: 'list-store-sections', params: { id: wrapper.props('shoppingList').id } });
+    expect(mockApiGet).toHaveBeenCalledWith('/catalog');
+    expect(link?.text()).toContain('2 sections · drag to match your shop');
   });
 
   it('renders member row with displayName and email', () => {
