@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/Sthirs/careto/compare/v1.0.0...v1.1.0) (2026-10-29)
+
+
+### Features
+
+* **list:** add store sections order and item menu ([#14](https://github.com/Sthirs/careto/issues/14)) ([6d4f81b](https://github.com/Sthirs/careto/commit/6d4f81b55977af6328f0f0da8b59f436cf189416))
+* **lists:** reopen the last viewed list on launch ([#16](https://github.com/Sthirs/careto/issues/16)) ([30a5ba5](https://github.com/Sthirs/careto/commit/30a5ba535427a80871407796cbdc9a66c1be6938))
+
 ## [1.0.0](https://github.com/Sthirs/careto/compare/v0.1.0...v1.0.0) (2026-10-29)
 
 
