@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/Sthirs/careto/compare/v1.1.0...v1.2.0) (2026-10-31)
+
+
+### Features
+
+* **list:** auto fill recurring items ([#17](https://github.com/Sthirs/careto/issues/17)) ([2666d03](https://github.com/Sthirs/careto/commit/2666d035674349118bd24ff0186210f80a21cd85))
+
 ## [1.1.0](https://github.com/Sthirs/careto/compare/v1.0.0...v1.1.0) (2026-10-29)
 
 
