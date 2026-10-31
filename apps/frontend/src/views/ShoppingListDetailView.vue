@@ -179,7 +179,7 @@ onMounted(loadShoppingList);
           v-if="toBuy.length > 0"
           :aria-label="t('shoppingListDetail.toBuyAria')"
           data-testid="to-buy"
-          class="m-0 flex list-none flex-col gap-1 overflow-hidden rounded-xl p-0"
+          class="m-0 flex shrink-0 list-none flex-col gap-1 overflow-hidden rounded-xl p-0"
         >
           <ListItemTile
             v-for="tile in toBuy"

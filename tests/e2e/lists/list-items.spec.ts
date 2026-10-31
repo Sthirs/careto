@@ -1,7 +1,7 @@
 // The List screen: search the default catalog and the list's custom items,
 // add, mark bought, add back from "Last used", and swipe to remove.
 import { test, expect } from '../fixtures/auth';
-import { createShoppingListViaApi, registerNamedUser } from '../fixtures/lists';
+import { api, createShoppingListViaApi, registerNamedUser } from '../fixtures/lists';
 import { ShoppingListDetailPage } from '../pages';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
@@ -72,4 +72,28 @@ test('list items: an Italian user searches the catalog in Italian', async ({ pag
   await expect(
     page.getByRole('list', { name: 'Da comprare' }).getByRole('button', { name: 'Segna Fragole come comprato' }),
   ).toBeVisible();
+});
+
+test('list items: a long list keeps full-height tiles and scrolls', async ({ pageForUser }) => {
+  const owner = await registerNamedUser('Scroll');
+  const list = await createShoppingListViaApi(owner, [], 'e2e-scroll');
+  const keys = ['apples', 'bananas', 'milk', 'bread', 'eggs', 'mozzarella', 'rice', 'coffee', 'tea', 'butter'];
+  for (const catalogItemKey of keys) {
+    await api(owner.token, 'POST', `/lists/${list.id}/items`, { catalogItemKey });
+  }
+  const page = await pageForUser(owner.email, owner.password);
+  await page.setViewportSize({ width: 390, height: 640 });
+  const detailPage = new ShoppingListDetailPage(page);
+
+  await page.goto(`/lists/${list.id}`);
+  const tiles = detailPage.toBuyList().getByTestId('list-item');
+  await expect(tiles).toHaveCount(keys.length);
+
+  // The tiles never shrink to fit the screen: the list scrolls instead.
+  for (const tile of await tiles.all()) {
+    expect((await tile.boundingBox())?.height).toBeGreaterThanOrEqual(72);
+  }
+  const last = tiles.last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
 });
