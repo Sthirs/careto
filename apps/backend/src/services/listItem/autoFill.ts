@@ -96,7 +96,7 @@ export async function runAutoFill(
           console.log(`[auto-fill] list=${listId} added=[${added.join(',')}]`);
         }
       } catch (error: unknown) {
-        console.error(`[auto-fill] list=${listId} failed`, error);
+        console.error('[auto-fill] list=%s failed', listId, error);
       }
     }
     return { lists: listIds.length, filled };

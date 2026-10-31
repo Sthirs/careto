@@ -137,6 +137,6 @@ describe('runAutoFill', () => {
     });
 
     expect(await runAutoFill(NOW, r())).toEqual({ skipped: false, lists: 2, filled: 1 });
-    expect(console.error).toHaveBeenCalledWith('[auto-fill] list=broken failed', expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith('[auto-fill] list=%s failed', 'broken', expect.any(Error));
   });
 });
