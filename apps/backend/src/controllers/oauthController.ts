@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { env } from '../config/env';
+import { sendUncompressed } from '../middleware/compression';
 import {
   buildOAuthRedirectUri,
   OAuthNotConfiguredError,
@@ -99,6 +100,8 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
     // issued on this cross-site redirect response.
     const refresh = await issueRefreshToken(user.id);
     setRefreshCookie(res, refresh.raw);
+    // The token rides in the Location URL and the redirect body echoes it.
+    sendUncompressed(res);
     res.redirect(`${loggedFrontendUrl}/auth/callback?token=${encodeURIComponent(token)}`);
   } catch (error: unknown) {
     res.clearCookie('careto.oauth.state', { path: '/' });

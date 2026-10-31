@@ -36,14 +36,31 @@ export class DishesPage {
     return this.page.locator(`[data-testid="dish-card"][data-dish-name="${name}"]`);
   }
 
+  /**
+   * The card moves before the server answers; wait for the dish's list write
+   * so a next action is not sent while it is still in flight.
+   */
+  private listWritten(method: 'POST' | 'DELETE') {
+    return this.page.waitForResponse(
+      (response) =>
+        response.request().method() === method &&
+        /\/api\/lists\/[^/]+\/dishes\/[^/]+\/list$/.test(new URL(response.url()).pathname) &&
+        response.ok(),
+    );
+  }
+
   async addToList(name: string): Promise<void> {
+    const saved = this.listWritten('POST');
     await this.page.getByRole('button', { name: `Add ${name} to the list`, exact: true }).click();
+    await saved;
   }
 
   async undo(name: string): Promise<void> {
+    const saved = this.listWritten('DELETE');
     await this.page
       .getByRole('button', { name: `${name} is in the list. Tap to remove its ingredients`, exact: true })
       .click();
+    await saved;
   }
 
   async resume(name: string): Promise<void> {
