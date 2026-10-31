@@ -81,6 +81,7 @@ beforeEach(() => {
     customItemRepository: repo(),
     listItemRepository: repo(),
     listItemDishRepository: repo(),
+    listItemEventRepository: repo(),
     dishRepository: repo(),
     dishIngredientRepository: repo(),
   } as unknown as FakeRepos;
@@ -247,6 +248,11 @@ describe('removeDishFromList', () => {
     expect(repos.listItemRepository.delete).toHaveBeenCalledTimes(1);
     expect(repos.listItemRepository.delete).toHaveBeenCalledWith({ id: 'dish-only', shoppingListId: 'list-1' });
     expect(repos.listItemRepository.update).toHaveBeenCalledWith({ id: 'reopened' }, { status: 'bought' });
+    // Both items the undo took off are logged as dish removals (ADR-0027).
+    expect(repos.listItemEventRepository.insert).toHaveBeenCalledTimes(2);
+    expect(repos.listItemEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'removed', source: 'dish', userId: 'u1' }),
+    );
     expect(repos.dishRepository.update).toHaveBeenCalledWith(
       { id: 'dish-1' },
       { lastAddedAt: new Date('2026-08-01T00:00:00Z'), previousLastAddedAt: null },

@@ -40,6 +40,10 @@ backend:
     FRONTEND_URL: ""
     RATE_LIMIT_WINDOW_MS: "300000"
     RATE_LIMIT_LIMIT: "500"
+    # ADR-0027: the auto-fill job, run inside the backend process. One run at
+    # startup, then one every AUTO_FILL_INTERVAL_MS.
+    AUTO_FILL_ENABLED: "true"
+    AUTO_FILL_INTERVAL_MS: "3600000"
     # ADR-0018 session lifetimes, in seconds. The refresh window is sliding:
     # every rotation resets it, so an active user never has to sign in again.
     # Neither is a secret — the refresh secrets themselves are per-token random

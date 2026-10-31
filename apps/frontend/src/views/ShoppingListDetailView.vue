@@ -66,6 +66,7 @@ const tileOf = (item: ListItem) => ({
   label: labelOf(item),
   icon: tileIconOf(item),
   fromDish: item.source === 'dish',
+  fromPlanner: item.source === 'recurring',
 });
 
 const toBuy = computed(() =>
@@ -178,7 +179,7 @@ onMounted(loadShoppingList);
           v-if="toBuy.length > 0"
           :aria-label="t('shoppingListDetail.toBuyAria')"
           data-testid="to-buy"
-          class="m-0 flex list-none flex-col gap-1 overflow-hidden rounded-xl p-0"
+          class="m-0 flex shrink-0 list-none flex-col gap-1 overflow-hidden rounded-xl p-0"
         >
           <ListItemTile
             v-for="tile in toBuy"
@@ -187,6 +188,7 @@ onMounted(loadShoppingList);
             :label="tile.label"
             :icon="tile.icon"
             :from-dish="tile.fromDish"
+            :from-planner="tile.fromPlanner"
             :action-label="t('shoppingListDetail.markBoughtAria', { name: tile.label })"
             :described-by="REMOVE_HINT_ID"
             :menu-label="t('shoppingListDetail.moreOptionsAria', { name: tile.label })"

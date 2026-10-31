@@ -83,6 +83,12 @@ Careto is an application that autofill the grocery list based on the user's pref
   - Base consumption. What gets used regardless of the menu: yogurt for breakfast, fruit, bread. Only recurring products have it.
   - Dish consumption. The quantity written in the dish's ingredient. It is deterministic: if the dish is on the menu, it is needed.
 - Each recurring product has an interval in days, corrected only by the user's signals: manual additions and "have it". Purchases made on the system's proposal do not measure how long a product lasts.
+- The list keeps the history of its items: every add, purchase, undo of a mistaken purchase and removal, with the reason the item was to buy (added by hand, for a dish, or by the system), the member who acted, and when.
+- A product's stock lasts from a purchase not made for a dish until the first time a member adds it again by hand; putting it back from "Last used" counts as adding it by hand. That time counts only once that add is bought.
+- Adding by hand a product the automatic planner already put on the list does not measure its stock: it is still a purchase made on the system's proposal.
+- Removing an item that is still to buy means the product is not finished yet. It cancels the hand add being measured and holds the product back: the system does not add it again until its next purchase.
+- A product becomes recurring once its stock has been measured at least twice. Its interval is the median of the last eight measures, in whole days, at least one.
+- As soon as a recurring product is due (its interval has passed since its last purchase, and it is neither to buy nor held back), the system adds it to the list on its own, even when no member opens the app. The list shows such items as added by the automatic planner.
 
 ## Architecture
 

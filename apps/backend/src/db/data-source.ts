@@ -10,6 +10,7 @@ import { DishIngredient } from '../entities/DishIngredient';
 import { ListCustomItem } from '../entities/ListCustomItem';
 import { ListItem } from '../entities/ListItem';
 import { ListItemDish } from '../entities/ListItemDish';
+import { ListItemEvent } from '../entities/ListItemEvent';
 import { ListSectionOrder } from '../entities/ListSectionOrder';
 import { ShoppingList } from '../entities/ShoppingList';
 import { Invitation } from '../entities/Invitation';
@@ -39,6 +40,7 @@ export const AppDataSource = new DataSource({
     Dish,
     DishIngredient,
     ListItemDish,
+    ListItemEvent,
     WeekSlot,
   ],
 });

@@ -2,6 +2,7 @@ import { IsNull } from 'typeorm';
 
 import type { Dish } from '../../entities/Dish';
 
+import { recordItemEvent } from '../listItem/itemEvents';
 import { ensureListItem, isUniqueViolation } from '../listItem/listItemMutations';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import { findDish, getDishIdsInList, serializeWithStatus } from './dishQueries';
@@ -113,6 +114,7 @@ export async function removeDishFromList(
       where: { listItemId: listItem.id, fulfilledAt: IsNull() },
     });
     if (stillNeeded > 0) continue;
+    await recordItemEvent(repositories, listItem, 'removed', 'dish', userId);
     if (listItem.lastBoughtAt) {
       // The dish put a bought item back: return it to Last used.
       await repositories.listItemRepository.update({ id: listItem.id }, { status: 'bought' });

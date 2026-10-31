@@ -15,16 +15,33 @@ const props = defineProps<{
   describedBy: string;
   /** The item is to buy because of a dish (`source: 'dish'`). */
   fromDish?: boolean;
+  /** The automatic planner put the item back to buy (`source: 'recurring'`). */
+  fromPlanner?: boolean;
   /** Accessible name of the ⋮ button; without it the tile has no menu. */
   menuLabel?: string;
 }>();
 
 const emit = defineEmits<{ activate: []; remove: []; menu: [] }>();
 
+/** Two looping arrows: the badge of items the automatic planner added. */
+const PLANNER_ICON =
+  'M17 2l3 3-3 3 M4 11V9a4 4 0 0 1 4-4h12 M7 22l-3-3 3-3 M20 13v2a4 4 0 0 1-4 4H4';
+
 const MENU_DOTS =
   'M12 7.5a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z M12 13.8a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z M12 20.1a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z';
 
 const { t } = useI18n();
+
+/** Why the item is to buy, when it is not a member's own add. */
+const badge = computed(() => {
+  if (props.fromDish) {
+    return { testId: 'from-dish-badge', label: t('shoppingListDetail.fromDish'), path: DISH_ICON };
+  }
+  if (props.fromPlanner) {
+    return { testId: 'from-planner-badge', label: t('shoppingListDetail.fromPlanner'), path: PLANNER_ICON };
+  }
+  return null;
+});
 
 /** A swipe further left than this share of the tile's width removes it. */
 const REMOVE_THRESHOLD = 0.35;
@@ -137,14 +154,14 @@ const toneClass = computed(() => (props.tone === 'to-buy' ? 'bg-danger' : 'bg-br
         <ItemIcon :path="icon" />
         <span class="min-w-0 truncate text-[19px] font-extrabold">{{ label }}</span>
         <span
-          v-if="fromDish"
+          v-if="badge"
           role="img"
-          data-testid="from-dish-badge"
-          :aria-label="t('shoppingListDetail.fromDish')"
-          :title="t('shoppingListDetail.fromDish')"
+          :data-testid="badge.testId"
+          :aria-label="badge.label"
+          :title="badge.label"
           class="-ml-2 flex size-6.5 shrink-0 items-center justify-center rounded-full bg-white/22"
         >
-          <ItemIcon :path="DISH_ICON" :size="15" :stroke-width="2.4" />
+          <ItemIcon :path="badge.path" :size="15" :stroke-width="2.4" />
         </span>
       </button>
       <button

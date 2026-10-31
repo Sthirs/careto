@@ -112,6 +112,7 @@ export const en = {
     removedAnnouncement: '{name} removed from the list',
     actionFailed: 'We could not update the list. Try again.',
     fromDish: 'For a dish',
+    fromPlanner: 'Added by the automatic planner',
     moreOptionsAria: 'More options for {name}',
   },
 

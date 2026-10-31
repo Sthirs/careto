@@ -2,6 +2,7 @@ import { AppDataSource } from '../../db/data-source';
 import { ShoppingList } from '../../entities/ShoppingList';
 import { User } from '../../entities/User';
 import { hashPassword } from '../../utils/password';
+import { seedAutoFillList } from './seedAutoFillList';
 import { COMMON_PASSWORD, DEMO_EMAIL, SEED_SHOPPING_LISTS, SEED_USERS } from './seedData';
 
 export const seedDatabase = async (): Promise<void> => {
@@ -79,4 +80,6 @@ export const seedDatabase = async (): Promise<void> => {
 
     await shoppingListRepository.save(shoppingList);
   }
+
+  await seedAutoFillList(demoUser);
 };

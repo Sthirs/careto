@@ -99,6 +99,24 @@ const envSchema = z.object({
       }
       return parsed;
     }),
+  // ADR-0027: the auto-fill job runs inside the API process.
+  AUTO_FILL_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value !== 'false'),
+  AUTO_FILL_INTERVAL_MS: z
+    .string()
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value.trim() === '') return 3600000;
+      const parsed = Number(value);
+      if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 2147483647) {
+        throw new Error(
+          'AUTO_FILL_INTERVAL_MS must be a positive integer <= 2147483647 (setInterval cap)',
+        );
+      }
+      return parsed;
+    }),
   CORS_ORIGIN: z.string().default('http://careto.127.0.0.1.nip.io'),
   OAUTH_CONFIG: z
     .string()
@@ -159,6 +177,14 @@ const generatedVapidKeys =
 const vapidPublicKey = parsedEnv.VAPID_PUBLIC_KEY || generatedVapidKeys?.publicKey;
 const vapidPrivateKey = parsedEnv.VAPID_PRIVATE_KEY || generatedVapidKeys?.privateKey;
 
+// The demo seed is for dev and CI only: it creates known accounts with a
+// shared password and rebuilds a demo list on every start. Production never
+// seeds, whatever SEED_ON_STARTUP says.
+const seedOnStartup = parsedEnv.SEED_ON_STARTUP && parsedEnv.NODE_ENV !== 'production';
+if (parsedEnv.SEED_ON_STARTUP && !seedOnStartup) {
+  console.warn('[seed] SEED_ON_STARTUP is ignored under NODE_ENV=production.');
+}
+
 const databaseUrl =
   parsedEnv.DATABASE_URL ??
   (parsedEnv.DB_HOSTNAME &&
@@ -171,6 +197,7 @@ const databaseUrl =
 
 export const env = {
   ...parsedEnv,
+  SEED_ON_STARTUP: seedOnStartup,
   DATABASE_URL: databaseUrl,
   FRONTEND_URL: parsedEnv.FRONTEND_URL ?? parsedEnv.CORS_ORIGIN,
   localLoginEnabled: parsedEnv.AUTH_LOCAL_LOGIN_ENABLED,
