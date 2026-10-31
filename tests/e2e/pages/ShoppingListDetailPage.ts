@@ -65,12 +65,18 @@ export class ShoppingListDetailPage {
     return (await list.getByTestId('list-item').allInnerTexts()).map((text) => text.trim());
   }
 
+  // Wait for the status write: the tile moves before the server answers, and a
+  // next action sent while it is in flight can be overtaken by its response.
   async markBought(itemName: string): Promise<void> {
+    const saved = this.itemWritten('PATCH');
     await this.toBuyList().getByRole('button', { name: `Mark ${itemName} as bought` }).click();
+    await saved;
   }
 
   async addBack(itemName: string): Promise<void> {
+    const saved = this.itemWritten('PATCH');
     await this.lastUsedList().getByRole('button', { name: `Add ${itemName} back to the list` }).click();
+    await saved;
   }
 
   /** ListItemTile.vue: a left swipe past the threshold removes the item. */
