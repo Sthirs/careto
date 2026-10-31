@@ -5,6 +5,7 @@ import multer from 'multer';
 import { rateLimit } from 'express-rate-limit';
 
 import { env } from './config/env';
+import { responseCompression } from './middleware/compression';
 import { apiRouter } from './routes';
 import { UnsupportedImageTypeError } from './services/imageService';
 
@@ -38,6 +39,7 @@ export const createApp = () => {
       credentials: true,
     }),
   );
+  app.use(responseCompression);
   app.use(express.json());
   // No CSRF token, by design (ADR-0018): the refresh cookie is sameSite
   // 'strict' and CORS never allows a foreign origin; the OAuth state cookie is

@@ -56,3 +56,4 @@ in the repository root). ADRs derive from the specification in [`docs/specificat
 | [ADR-0025](0025-week-plan-rolling-weekday-slots.md) | Week plan — one rolling plan per list, slots keyed by weekday | 🟢 accepted |
 | [ADR-0026](0026-store-section-order-and-item-overrides.md) | Store section order and per-item icon and section overrides | 🟢 accepted |
 | [ADR-0027](0027-recurring-products-and-auto-fill.md) | Recurring products and auto-fill — item event log, derived habits, in-process job | 🟢 accepted |
+| [ADR-0028](0028-http-response-compression.md) | HTTP response compression — each origin compresses its own responses | 🟢 accepted |
