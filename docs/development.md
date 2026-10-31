@@ -164,7 +164,8 @@ The API applies a global per-IP rate limiter (express-rate-limit):
 
 The backend adds recurring products to their lists as soon as they are due
 ([ADR-0027](adr/0027-recurring-products-and-auto-fill.md)). The job runs inside
-the API process: once at startup, after seeding, and then on a timer.
+the API process: once at startup, after seeding and in the background (the
+server does not wait for it), and then on a timer.
 
 - Only one replica runs it at a time; a Postgres advisory lock guards each run.
 - Every run logs `[auto-fill] run: lists=N filled=N`, and each list it fills

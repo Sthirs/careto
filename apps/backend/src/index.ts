@@ -56,14 +56,15 @@ const bootstrap = async () => {
   ).unref();
 
   // ADR-0027: auto-fill, started here for the same reason as the pruning
-  // above. The first run happens after seeding, so the seeded history fills
-  // its list right away.
+  // above. The first run starts after seeding, so the seeded history fills
+  // its list right away, but is not awaited: a run over every list must not
+  // hold back the server and its readiness probe.
   if (env.AUTO_FILL_ENABLED) {
     const autoFill = () =>
       runAutoFill().catch((error: unknown) => {
         console.error('[auto-fill] Run failed', error);
       });
-    await autoFill();
+    void autoFill();
     setInterval(() => void autoFill(), env.AUTO_FILL_INTERVAL_MS).unref();
   }
 

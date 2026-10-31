@@ -92,11 +92,11 @@ describe('autoFillList', () => {
     expect(await autoFillList(r(), 'list-1', NOW)).toEqual([]);
   });
 
-  it('holds back a product snoozed by a "not finished yet" removal', async () => {
+  it('holds back a product removed as "not finished yet", however long ago', async () => {
     repos.listItemEventRepository.find.mockResolvedValue([
-      ...milkHistory(8),
-      { catalogItemKey: 'milk', customItemId: null, kind: 'added', source: 'recurring', at: daysAgo(1) },
-      { catalogItemKey: 'milk', customItemId: null, kind: 'removed', source: 'recurring', at: daysAgo(1) },
+      ...milkHistory(60),
+      { catalogItemKey: 'milk', customItemId: null, kind: 'added', source: 'recurring', at: daysAgo(53) },
+      { catalogItemKey: 'milk', customItemId: null, kind: 'removed', source: 'recurring', at: daysAgo(53) },
     ]);
     expect(await autoFillList(r(), 'list-1', NOW)).toEqual([]);
   });

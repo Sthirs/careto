@@ -56,7 +56,9 @@ export async function autoFillList(
   const byProduct = new Map<string, ListItemEvent[]>();
   for (const event of events) {
     const key = productKey(event);
-    byProduct.set(key, [...(byProduct.get(key) ?? []), event]);
+    const productEvents = byProduct.get(key);
+    if (productEvents) productEvents.push(event);
+    else byProduct.set(key, [event]);
   }
 
   const added: string[] = [];

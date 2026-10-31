@@ -89,3 +89,36 @@ describe('AUTO_FILL_* (ADR-0027)', () => {
     await expect(import('../../src/config/env')).rejects.toThrow(/AUTO_FILL_INTERVAL_MS/);
   });
 });
+
+describe('SEED_ON_STARTUP', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('seeds in development (dev and CI)', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('SEED_ON_STARTUP', 'true');
+
+    const { env } = await import('../../src/config/env');
+
+    expect(env.SEED_ON_STARTUP).toBe(true);
+  });
+
+  it('never seeds in production, and warns about it', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SEED_ON_STARTUP', 'true');
+
+    const { env } = await import('../../src/config/env');
+
+    expect(env.SEED_ON_STARTUP).toBe(false);
+    expect(console.warn).toHaveBeenCalledWith(
+      '[seed] SEED_ON_STARTUP is ignored under NODE_ENV=production.',
+    );
+  });
+});

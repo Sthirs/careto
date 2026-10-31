@@ -26,7 +26,7 @@ The product owner decided the following for this first version:
 
 - a product is added **as soon as it is due**: no shopping day and no batch;
 - a stock lifetime is measured **from a purchase to the next hand add**, and it counts only once that add is bought;
-- removing an item means **"not finished yet"**;
+- removing an item means **"not finished yet"**: the product is not added again until its next purchase;
 - the history is kept as an **event log**;
 - the fill is done by a **backend job inside the API process**, debugged through its logs.
 
@@ -52,6 +52,8 @@ What gets logged:
 - `unbought`: an un-buy within the grace period, i.e. a mistaken tap.
 - `removed`: when an item that is still to buy is deleted, and when the dish undo takes a dish item off (logged with source `dish`).
 
+A status change is a conditional update on the current status, and only the request whose update changed the row logs it, so a double tap or two concurrent requests never log the same change twice.
+
 There is no backfill: lists start learning when this ships.
 
 ### Derivation
@@ -60,14 +62,14 @@ There is no backfill: lists start learning when this ships.
 
 1. Each `unbought` cancels itself and the `bought` before it.
 2. Events with source `dish` are ignored: dish consumption is not base consumption.
-3. A **stock period** runs from one remaining purchase to the next. It gives at most one sample:
-   - **exact**: from the purchase to the first `added`/`user` of the period, when the period ends with a buy;
-   - **lower bound**, when there is no exact sample: from the purchase to the period's last `removed` ("not finished yet"), plus the snooze that removal caused.
-4. A removal also cancels the period's pending hand add.
-5. A purchase with source `recurring` starts a new period but measures nothing.
-6. The **interval** is the median of the last 8 samples, in whole days, at least 1. A product needs at least 2 samples to count as recurring.
-7. A removal **snoozes** the product for `max(1, round(interval × 25%))` days.
-8. A product is **due** when `last purchase + interval ≤ now`, and it is not snoozed.
+3. A **stock period** runs from one remaining purchase to the next. It gives at most one sample: from the purchase to the first `added`/`user` of the period, when the period ends with a buy.
+4. An `added`/`user` that follows an `added`/`recurring` in the same period is a member **claiming** the planner's proposal, not the stock running out: it measures nothing.
+5. A removal cancels the period's pending hand add, and **holds the product back** ("not finished yet") until its next purchase.
+6. A purchase with source `recurring` starts a new period but measures nothing.
+7. The **interval** is the median of the last 8 samples, in whole days, at least 1. A product needs at least 2 samples to count as recurring.
+8. A product is **due** when `last purchase + interval ≤ now`, and it is not held back.
+
+A held-back product is added again only after a member adds it by hand and buys it; that hand add measures how long the stock really lasted. A product the household stopped buying therefore drops out after one removal.
 
 ### Job
 
@@ -76,7 +78,7 @@ There is no backfill: lists start learning when this ships.
 - it calls `autoFillList`, which adds every due product that is not already to buy through `ensureListItem(…, 'recurring', null)` (so the add is logged too);
 - a failing list is logged and skipped.
 
-`index.ts` runs the job once at startup, after seeding, then every `AUTO_FILL_INTERVAL_MS` (default 1 h) with `setInterval(...).unref()`, outside `createApp()`. This follows the refresh-token pruning precedent of [ADR-0018](0018-refresh-token-rotation.md). `AUTO_FILL_ENABLED=false` turns the job off.
+`index.ts` starts the job once at startup, after seeding and without awaiting it, so the server and its readiness probe never wait for a run; then it runs every `AUTO_FILL_INTERVAL_MS` (default 1 h) with `setInterval(...).unref()`, outside `createApp()`. This follows the refresh-token pruning precedent of [ADR-0018](0018-refresh-token-rotation.md). `AUTO_FILL_ENABLED=false` turns the job off.
 
 Logs:
 
@@ -91,7 +93,7 @@ A to-buy item with `source: 'recurring'` shows a repeat badge, "Added by the aut
 
 ### Tests
 
-The integration and Playwright suites run against the deployed app ([ADR-0008](0008-testing-strategy.md)), so they can neither move the clock nor write to the database. Instead, the seeder rebuilds a demo list called "Dispensa" on every startup, with a back-dated history relative to now:
+The integration and Playwright suites run against the deployed app ([ADR-0008](0008-testing-strategy.md)), so they can neither move the clock nor write to the database. Instead, the seeder rebuilds a demo list called "Dispensa" on every startup (only in dev and CI: `SEED_ON_STARTUP` is ignored under `NODE_ENV=production`), with a back-dated history relative to now:
 
 - two products with two 7-day lifetimes each, last bought 8 days ago, so both are due;
 - one product bought only for dishes, which must never be filled.
@@ -115,7 +117,6 @@ The startup run fills the list, and both suites read it. The derivation and the 
 - [ADR-0018](0018-refresh-token-rotation.md): an in-process `setInterval` job started from `index.ts`.
 - [ADR-0017](0017-module-size-ceiling-and-split-convention.md): the new logic lives in its own modules (`itemEvents.ts`, `recurrence.ts`, `autoFill.ts`) to keep `listItemMutations.ts` under the ceiling.
 - PostgreSQL documentation, "Advisory Locks" (`pg_try_advisory_lock`, session-level locks on a single connection).
-- Survival analysis practice of treating "still alive at time t" as a right-censored observation. The lower-bound sample is a simple stand-in for it.
 
 ## Consequences
 
@@ -128,9 +129,9 @@ The startup run fills the list, and both suites read it. The derivation and the 
   - one event row per list-item change, which grows without bound;
   - every run re-reads each list's full history;
   - an event is written after the change it records, outside a transaction, so a crash in between loses that one event;
-  - the lower-bound sample is a heuristic, not a statistical estimate.
+  - a product removed by mistake is not added again until a member adds it by hand.
 - Follow-ups:
-  - event retention, or a per-product summary, once history size matters;
+  - event retention, or a per-product summary (e.g. a `next_due_at` recomputed when the product gets an event, so a run only selects what is due), once history size matters;
   - the shopping day and the week plan proposal from §Week plan;
   - a "list is ready" or "due items" notification;
   - quantities from dish ingredients;

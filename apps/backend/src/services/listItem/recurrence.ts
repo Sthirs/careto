@@ -7,12 +7,12 @@ export type HabitEvent = { kind: ListItemEventKind; source: ListItemSource; at: 
 export type Habit = {
   /** The last purchase that restarted the stock: never one for a dish. */
   lastPurchaseAt: Date | null;
-  /** Stock lifetimes in days, oldest first, one per closed stock period. */
+  /** Stock lifetimes in days, oldest first, one per measured stock period. */
   samples: number[];
   /** Median of the recent samples; null until the product is recurring. */
   intervalDays: number | null;
-  /** A "not finished yet" removal holds the product back until then. */
-  snoozedUntil: Date | null;
+  /** A "not finished yet" removal holds the product back until its next purchase. */
+  heldBack: boolean;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -20,8 +20,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const MIN_SAMPLES = 2;
 /** Only the most recent samples set the interval, so habits can change. */
 export const RECENT_SAMPLES = 8;
-/** Share of the interval a "not finished yet" removal waits before re-proposing. */
-const SNOOZE_SHARE = 0.25;
 
 const wholeDays = (from: Date, to: Date): number =>
   Math.max(1, Math.round((to.getTime() - from.getTime()) / DAY_MS));
@@ -37,10 +35,6 @@ export function medianInterval(samples: readonly number[]): number | null {
     sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   return Math.max(1, Math.round(median));
 }
-
-/** How long a "not finished yet" removal holds the product back, in days. */
-export const snoozeDays = (intervalDays: number | null): number =>
-  Math.max(1, Math.round((intervalDays ?? 0) * SNOOZE_SHARE));
 
 /** Drops every undone mistaken tap: each `unbought` and the buy it undid. */
 function withoutUndoneBuys(events: readonly HabitEvent[]): HabitEvent[] {
@@ -59,50 +53,46 @@ function withoutUndoneBuys(events: readonly HabitEvent[]): HabitEvent[] {
 /**
  * Derives a product's habit from its events, in time order (ADR-0027). A
  * stock period runs from one purchase not made for a dish to the next, and
- * gives at most one sample: exact, from the purchase to the first hand add
- * that was then bought; otherwise a lower bound, from the purchase to the
- * last "not finished yet" removal, plus the snooze it caused.
+ * gives at most one sample: from the purchase to the first hand add that was
+ * then bought. A hand add that claims the planner's proposal measures nothing,
+ * and a "not finished yet" removal holds the product back until it is bought.
  */
 export function deriveHabit(events: readonly HabitEvent[]): Habit {
   const samples: number[] = [];
   let lastPurchaseAt: Date | null = null;
   let handAddAt: Date | null = null;
-  let notFinished: { at: Date; snooze: number } | null = null;
+  let proposed = false;
+  let heldBack = false;
 
   for (const event of withoutUndoneBuys(events)) {
     // Dish consumption is not base consumption: it never measures the stock.
     if (event.source === 'dish') continue;
 
-    if (event.kind === 'added' && event.source === 'user') {
-      if (lastPurchaseAt && !handAddAt) handAddAt = event.at;
+    if (event.kind === 'added' && event.source === 'recurring') {
+      proposed = true;
+    } else if (event.kind === 'added' && event.source === 'user') {
+      if (lastPurchaseAt && !handAddAt && !proposed) handAddAt = event.at;
     } else if (event.kind === 'removed') {
       handAddAt = null;
-      if (lastPurchaseAt) {
-        notFinished = { at: event.at, snooze: snoozeDays(medianInterval(samples)) };
-      }
+      proposed = false;
+      heldBack = true;
     } else if (event.kind === 'bought') {
-      if (lastPurchaseAt && handAddAt) {
-        samples.push(wholeDays(lastPurchaseAt, handAddAt));
-      } else if (lastPurchaseAt && notFinished) {
-        samples.push(wholeDays(lastPurchaseAt, notFinished.at) + notFinished.snooze);
-      }
+      if (lastPurchaseAt && handAddAt) samples.push(wholeDays(lastPurchaseAt, handAddAt));
       lastPurchaseAt = event.at;
       handAddAt = null;
-      notFinished = null;
+      proposed = false;
+      heldBack = false;
     }
   }
 
-  return {
-    lastPurchaseAt,
-    samples,
-    intervalDays: medianInterval(samples),
-    snoozedUntil: notFinished ? addDays(notFinished.at, notFinished.snooze) : null,
-  };
+  return { lastPurchaseAt, samples, intervalDays: medianInterval(samples), heldBack };
 }
 
-/** A recurring product is due once its interval has passed since the last purchase. */
+/**
+ * A recurring product is due once its interval has passed since the last
+ * purchase, unless a removal holds it back.
+ */
 export function isDue(habit: Habit, now: Date): boolean {
-  if (habit.intervalDays === null || !habit.lastPurchaseAt) return false;
-  if (habit.snoozedUntil && now < habit.snoozedUntil) return false;
+  if (habit.intervalDays === null || !habit.lastPurchaseAt || habit.heldBack) return false;
   return now >= addDays(habit.lastPurchaseAt, habit.intervalDays);
 }

@@ -8,7 +8,6 @@ import {
   deriveHabit,
   isDue,
   medianInterval,
-  snoozeDays,
   type HabitEvent,
 } from '../src/services/listItem/recurrence';
 
@@ -39,22 +38,13 @@ describe('medianInterval', () => {
   });
 });
 
-describe('snoozeDays', () => {
-  it('is a quarter of the interval, at least one day', () => {
-    expect(snoozeDays(null)).toBe(1);
-    expect(snoozeDays(2)).toBe(1);
-    expect(snoozeDays(8)).toBe(2);
-    expect(snoozeDays(30)).toBe(8);
-  });
-});
-
 describe('deriveHabit', () => {
   it('has no habit before a first purchase', () => {
     expect(deriveHabit([ev('added', 'user', 0)])).toEqual({
       lastPurchaseAt: null,
       samples: [],
       intervalDays: null,
-      snoozedUntil: null,
+      heldBack: false,
     });
   });
 
@@ -88,7 +78,7 @@ describe('deriveHabit', () => {
       ...handCycle(8, 9),
     ]);
     expect(habit.samples).toEqual([7]);
-    expect(habit.snoozedUntil).toBeNull();
+    expect(habit.heldBack).toBe(false);
   });
 
   it('cancels a mistaken tap and the buy it undid', () => {
@@ -115,45 +105,46 @@ describe('deriveHabit', () => {
     expect(habit.lastPurchaseAt).toEqual(day(25));
   });
 
-  it('turns a removal into a "not finished yet" lower bound plus its snooze', () => {
+  it('measures nothing from a hand add that claims the planner\'s proposal', () => {
+    const habit = deriveHabit([
+      ...handCycle(0, 1),
+      ...handCycle(8, 9),
+      ...handCycle(16, 17),
+      ev('added', 'recurring', 24),
+      ev('added', 'user', 26),
+      ev('bought', 'user', 27),
+    ]);
+    // Never a 9-day sample from the claim on day 26.
+    expect(habit.samples).toEqual([7, 7]);
+    expect(habit.lastPurchaseAt).toEqual(day(27));
+  });
+
+  it('holds the product back from a "not finished yet" removal until its next purchase', () => {
     const habit = deriveHabit([
       ...handCycle(0, 1),
       ...handCycle(8, 9),
       ...handCycle(16, 17),
       ev('added', 'recurring', 24),
       ev('removed', 'recurring', 24),
-      ev('added', 'recurring', 26),
-      ev('bought', 'recurring', 27),
     ]);
-    // 7 days to the removal, plus the 2-day snooze of a 7-day interval.
-    expect(habit.samples).toEqual([7, 7, 9]);
-    expect(habit.snoozedUntil).toBeNull();
+    expect(habit.heldBack).toBe(true);
+    expect(habit.samples).toEqual([7, 7]);
   });
 
-  it('snoozes the product from the last "not finished yet" removal', () => {
+  it('measures the hand add that follows a removal, and releases the product', () => {
     const habit = deriveHabit([
       ...handCycle(0, 1),
       ...handCycle(8, 9),
       ...handCycle(16, 17),
       ev('added', 'recurring', 24),
       ev('removed', 'recurring', 24),
+      ...handCycle(30, 31),
     ]);
-    expect(habit.snoozedUntil).toEqual(day(26));
+    expect(habit.samples).toEqual([7, 7, 13]);
+    expect(habit.heldBack).toBe(false);
   });
 
-  it('cancels the exact sample of a hand add removed before it is bought', () => {
-    const habit = deriveHabit([
-      ...handCycle(0, 1),
-      ev('added', 'user', 4),
-      ev('removed', 'user', 4),
-      ev('added', 'recurring', 9),
-      ev('bought', 'recurring', 10),
-    ]);
-    // A lower bound of 3 days plus the 1-day snooze, never the 3-day exact add.
-    expect(habit.samples).toEqual([4]);
-  });
-
-  it('prefers an exact sample to a lower bound in the same period', () => {
+  it('cancels the sample of a hand add removed before it is bought', () => {
     const habit = deriveHabit([
       ...handCycle(0, 1),
       ev('added', 'user', 4),
@@ -176,15 +167,14 @@ describe('isDue', () => {
     expect(isDue(deriveHabit(handCycle(0, 1)), day(100))).toBe(false);
   });
 
-  it('waits for the snooze of a "not finished yet" removal', () => {
-    const snoozed = deriveHabit([
+  it('is never due while a "not finished yet" removal holds it back', () => {
+    const heldBack = deriveHabit([
       ...handCycle(0, 1),
       ...handCycle(8, 9),
       ...handCycle(16, 17),
       ev('added', 'recurring', 24),
       ev('removed', 'recurring', 24),
     ]);
-    expect(isDue(snoozed, day(25.9))).toBe(false);
-    expect(isDue(snoozed, day(26))).toBe(true);
+    expect(isDue(heldBack, day(365))).toBe(false);
   });
 });

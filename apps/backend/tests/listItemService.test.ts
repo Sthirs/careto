@@ -70,6 +70,7 @@ beforeEach(() => {
     sectionOrderRepository: repo(),
     replaceSectionOrder: vi.fn(async (work: (orders: typeof orderTx) => Promise<void>) => work(orderTx)),
   };
+  repos.listItemRepository.update.mockResolvedValue({ affected: 1 });
 });
 
 const r = () => repos as unknown as ListItemRepositories;
@@ -184,6 +185,15 @@ describe('setListItemStatus', () => {
     const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
     expect(item.status).toBe('bought');
     expect(item.lastBoughtAt).toEqual(expect.any(String));
+  });
+
+  it('buys only an item that is still to buy', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
+    expect(repos.listItemRepository.update).toHaveBeenCalledWith(
+      { id: 'item-1', shoppingListId: 'list-1', status: 'to_buy' },
+      { status: 'bought', lastBoughtAt: expect.any(Date) },
+    );
   });
 
   it('meets the open dish needs of a bought item', async () => {
@@ -401,6 +411,24 @@ describe('item history (ADR-0027)', () => {
     repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought', lastBoughtAt: new Date() }));
     await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
     expect(events()).toEqual([]);
+  });
+
+  it('logs nothing when a concurrent request bought the item first', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    repos.listItemRepository.update.mockResolvedValue({ affected: 0 });
+    await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
+    expect(events()).toEqual([]);
+    expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('logs nothing when a concurrent request put the item back first', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', lastBoughtAt: new Date(Date.now() - 60_000) }),
+    );
+    repos.listItemRepository.update.mockResolvedValue({ affected: 0 });
+    await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+    expect(events()).toEqual([]);
+    expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
   });
 
   it('logs the undo of a mistaken buy', async () => {

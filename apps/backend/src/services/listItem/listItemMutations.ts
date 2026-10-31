@@ -196,37 +196,49 @@ export async function setListItemStatus(
   userId: string,
 ): Promise<SerializedListItem> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
+  if (item.status === status) return serializeListItem(item);
 
-  if (status === 'to_buy' && item.status === 'bought') {
-    const boughtAt = item.lastBoughtAt;
-    if (boughtAt && Date.now() - boughtAt.getTime() <= UNBUY_GRACE_MS) {
-      // A mistaken tap: reopen the dish needs that this buy met.
-      await repositories.listItemDishRepository.update(
-        { listItemId: item.id, fulfilledAt: boughtAt },
-        { fulfilledAt: null },
-      );
-      await recordItemEvent(repositories, item, 'unbought', item.source, userId);
-    } else {
-      // Put back from Last used: a member adds it by hand.
-      item.source = 'user';
-      await recordItemEvent(repositories, item, 'added', 'user', userId);
-    }
-  }
+  const now = new Date();
+  const boughtAt = item.lastBoughtAt;
+  const mistakenTap =
+    status === 'to_buy' && boughtAt !== null && now.getTime() - boughtAt.getTime() <= UNBUY_GRACE_MS;
+  const changes: Pick<ListItem, 'status'> & Partial<Pick<ListItem, 'source' | 'lastBoughtAt'>> = {
+    status,
+  };
+  if (status === 'bought') changes.lastBoughtAt = now;
+  // Put back from Last used: a member adds it by hand.
+  else if (!mistakenTap) changes.source = 'user';
 
-  if (status === 'bought' && item.status !== 'bought') {
-    await recordItemEvent(repositories, item, 'bought', item.source, userId);
+  // Only the request that moves the item out of its current status records
+  // the change, so a double tap or a concurrent request never logs it twice.
+  const { affected } = await repositories.listItemRepository.update(
+    { id: item.id, shoppingListId, status: item.status },
+    changes,
+  );
+  if (!affected) {
+    return serializeListItem(await findMemberListItem(repositories, shoppingListId, itemId, userId));
   }
-  item.status = status;
+  Object.assign(item, changes);
+
   if (status === 'bought') {
-    item.lastBoughtAt = new Date();
     // Buying an item meets every dish need still open on it (ADR-0024).
     await repositories.listItemDishRepository.update(
       { listItemId: item.id, fulfilledAt: IsNull() },
-      { fulfilledAt: item.lastBoughtAt },
+      { fulfilledAt: now },
     );
+    await recordItemEvent(repositories, item, 'bought', item.source, userId);
+  } else if (mistakenTap) {
+    // A mistaken tap: reopen the dish needs that this buy met.
+    await repositories.listItemDishRepository.update(
+      { listItemId: item.id, fulfilledAt: boughtAt },
+      { fulfilledAt: null },
+    );
+    await recordItemEvent(repositories, item, 'unbought', item.source, userId);
+  } else {
+    await recordItemEvent(repositories, item, 'added', 'user', userId);
   }
 
-  return serializeListItem(await repositories.listItemRepository.save(item));
+  return serializeListItem(item);
 }
 
 /**
