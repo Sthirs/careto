@@ -149,6 +149,8 @@ describe('oauthController', () => {
     expect(response.headers.location).toBe(
       `${FRONTEND_URL}/auth/callback?token=${encodeURIComponent('T')}`,
     );
+    // BREACH (ADR-0028): the token is in Location and echoed in the body.
+    expect(response.headers['cache-control']).toBe('no-store, no-transform');
     // The controller MUST clear the state cookie on success.
     const setCookie = response.headers['set-cookie'];
     expect(setCookie).toBeDefined();

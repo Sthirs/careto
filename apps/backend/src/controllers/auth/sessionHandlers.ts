@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 
+import { sendUncompressed } from '../../middleware/compression';
 import { sanitizeUser } from '../../services/authService';
 import {
   revokeFamilyByRawToken,
@@ -107,6 +108,7 @@ export const refresh = async (
   }
 
   setRefreshCookie(response, outcome.raw);
+  sendUncompressed(response);
   response.json({
     token: signAuthToken({ userId: user.id, email: user.email }),
     user: sanitizeUser(user),

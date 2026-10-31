@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 
 import { User } from '../../entities/User';
+import { sendUncompressed } from '../../middleware/compression';
 import {
   normalizeRequestedLanguage,
   sanitizeUser,
@@ -25,6 +26,7 @@ const issueSession = async (
   const token = signAuthToken({ userId: user.id, email: user.email });
   const refresh = await issueRefreshToken(user.id);
   setRefreshCookie(response, refresh.raw);
+  sendUncompressed(response);
   response.status(status).json({ token, user: sanitizeUser(user) });
 };
 
