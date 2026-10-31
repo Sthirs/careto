@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { initializeDatabase } from './db/data-source';
 import { initOAuthProviders } from './services/oauth/providerRegistry';
+import { runAutoFill } from './services/listItem/autoFill';
 import { pruneExpiredRefreshTokens } from './services/refreshTokenService';
 import { syncCatalog } from './services/catalogService';
 import { seedDatabase } from './services/seedService';
@@ -53,6 +54,18 @@ const bootstrap = async () => {
     },
     6 * 60 * 60 * 1000,
   ).unref();
+
+  // ADR-0027: auto-fill, started here for the same reason as the pruning
+  // above. The first run happens after seeding, so the seeded history fills
+  // its list right away.
+  if (env.AUTO_FILL_ENABLED) {
+    const autoFill = () =>
+      runAutoFill().catch((error: unknown) => {
+        console.error('[auto-fill] Run failed', error);
+      });
+    await autoFill();
+    setInterval(() => void autoFill(), env.AUTO_FILL_INTERVAL_MS).unref();
+  }
 
   const app = createApp();
 

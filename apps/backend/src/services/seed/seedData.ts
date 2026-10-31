@@ -2,6 +2,9 @@ export const DEMO_EMAIL = 'demo@careto.local';
 
 export const COMMON_PASSWORD = 'password123';
 
+/** The demo user's list with a seeded purchase history (ADR-0027). */
+export const AUTO_FILL_SEED_LIST_NAME = 'Dispensa';
+
 export type SeedUser = {
   email: string;
   displayName: string;

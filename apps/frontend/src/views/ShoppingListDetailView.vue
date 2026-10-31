@@ -66,6 +66,7 @@ const tileOf = (item: ListItem) => ({
   label: labelOf(item),
   icon: tileIconOf(item),
   fromDish: item.source === 'dish',
+  fromPlanner: item.source === 'recurring',
 });
 
 const toBuy = computed(() =>
@@ -187,6 +188,7 @@ onMounted(loadShoppingList);
             :label="tile.label"
             :icon="tile.icon"
             :from-dish="tile.fromDish"
+            :from-planner="tile.fromPlanner"
             :action-label="t('shoppingListDetail.markBoughtAria', { name: tile.label })"
             :described-by="REMOVE_HINT_ID"
             :menu-label="t('shoppingListDetail.moreOptionsAria', { name: tile.label })"

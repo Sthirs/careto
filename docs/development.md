@@ -160,6 +160,23 @@ The API applies a global per-IP rate limiter (express-rate-limit):
 | `RATE_LIMIT_WINDOW_MS` | `300000` | Length of the per-IP quota window in milliseconds |
 | `RATE_LIMIT_LIMIT`     | `500`    | Max requests per IP per window; excess gets 429   |
 
+### Auto-fill job
+
+The backend adds recurring products to their lists as soon as they are due
+([ADR-0027](adr/0027-recurring-products-and-auto-fill.md)). The job runs inside
+the API process: once at startup, after seeding, and then on a timer.
+
+- Only one replica runs it at a time; a Postgres advisory lock guards each run.
+- Every run logs `[auto-fill] run: lists=N filled=N`, and each list it fills
+  logs `[auto-fill] list=<id> added=[keys]`. Read them with `kubectl logs`, or
+  in your terminal when the backend is intercepted with Telepresence.
+- The history behind each decision is in the `list_item_events` table.
+
+| Variable                | Default   | Effect                                     |
+|-------------------------|-----------|--------------------------------------------|
+| `AUTO_FILL_ENABLED`     | `"true"`  | `"false"` turns the job off                |
+| `AUTO_FILL_INTERVAL_MS` | `3600000` | Time between two runs, in milliseconds     |
+
 ### Session lifetimes
 
 Sessions are a short-lived access JWT plus a rotating refresh token

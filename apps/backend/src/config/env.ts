@@ -99,6 +99,24 @@ const envSchema = z.object({
       }
       return parsed;
     }),
+  // ADR-0027: the auto-fill job runs inside the API process.
+  AUTO_FILL_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value !== 'false'),
+  AUTO_FILL_INTERVAL_MS: z
+    .string()
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value.trim() === '') return 3600000;
+      const parsed = Number(value);
+      if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 2147483647) {
+        throw new Error(
+          'AUTO_FILL_INTERVAL_MS must be a positive integer <= 2147483647 (setInterval cap)',
+        );
+      }
+      return parsed;
+    }),
   CORS_ORIGIN: z.string().default('http://careto.127.0.0.1.nip.io'),
   OAUTH_CONFIG: z
     .string()

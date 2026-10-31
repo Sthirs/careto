@@ -3,6 +3,7 @@ import { IsNull, QueryFailedError } from 'typeorm';
 import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListItem';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
+import { recordItemEvent } from './itemEvents';
 import type { ListItemRepositories } from './listItemRepositories';
 import { serializeListItem, type SerializedListItem } from './listItemSerialization';
 
@@ -110,14 +111,16 @@ export async function resolveReference(
  * Makes sure the referenced item is on the list and to buy. An item already
  * on it (bought or not) is moved back to `to_buy` instead of being
  * duplicated. `source` says why the item is to buy now (ADR-0024): a bought
- * item takes the caller's source, and a hand add claims a to-buy item.
+ * item takes the caller's source, and a hand add claims a to-buy item. Each
+ * add that puts the item to buy, or claims it, is logged (ADR-0027). A null
+ * `userId` is the system adding it.
  */
 export async function ensureListItem(
   repositories: ListItemRepositories,
   shoppingListId: string,
   reference: ItemReference,
   source: ListItemSource,
-  userId: string,
+  userId: string | null,
 ): Promise<{ item: ListItem; created: boolean }> {
   const where = reference.catalogItemKey
     ? { shoppingListId, catalogItemKey: reference.catalogItemKey }
@@ -150,6 +153,7 @@ export async function ensureListItem(
   }
 
   if (!item) throw new Error('Item not found.');
+  let changed = created;
   if (!created) {
     const reopened = item.status !== 'to_buy';
     const nextSource = reopened || source === 'user' ? source : item.source;
@@ -157,8 +161,10 @@ export async function ensureListItem(
       item.status = 'to_buy';
       item.source = nextSource;
       item = await repositories.listItemRepository.save(item);
+      changed = true;
     }
   }
+  if (changed) await recordItemEvent(repositories, item, 'added', item.source, userId);
 
   return { item, created };
 }
@@ -199,12 +205,17 @@ export async function setListItemStatus(
         { listItemId: item.id, fulfilledAt: boughtAt },
         { fulfilledAt: null },
       );
+      await recordItemEvent(repositories, item, 'unbought', item.source, userId);
     } else {
       // Put back from Last used: a member adds it by hand.
       item.source = 'user';
+      await recordItemEvent(repositories, item, 'added', 'user', userId);
     }
   }
 
+  if (status === 'bought' && item.status !== 'bought') {
+    await recordItemEvent(repositories, item, 'bought', item.source, userId);
+  }
   item.status = status;
   if (status === 'bought') {
     item.lastBoughtAt = new Date();
@@ -218,14 +229,21 @@ export async function setListItemStatus(
   return serializeListItem(await repositories.listItemRepository.save(item));
 }
 
-/** Takes the item off the list; a custom item stays searchable in the list. */
+/**
+ * Takes the item off the list; a custom item stays searchable in the list.
+ * Removing an item still to buy is logged: it means "not finished yet"
+ * (ADR-0027).
+ */
 export async function removeListItem(
   repositories: ListItemRepositories,
   shoppingListId: string,
   itemId: string,
   userId: string,
 ): Promise<void> {
-  await getShoppingListForMember(repositories, shoppingListId, userId);
+  const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
   const result = await repositories.listItemRepository.delete({ id: itemId, shoppingListId });
   if (!result.affected) throw new Error('Item not found.');
+  if (item.status === 'to_buy') {
+    await recordItemEvent(repositories, item, 'removed', item.source, userId);
+  }
 }

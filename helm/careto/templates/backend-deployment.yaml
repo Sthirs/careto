@@ -88,6 +88,10 @@ spec:
               value: {{ include "careto.backendEnvValue" (dict "root" . "key" "RATE_LIMIT_WINDOW_MS") | quote }}
             - name: RATE_LIMIT_LIMIT
               value: {{ include "careto.backendEnvValue" (dict "root" . "key" "RATE_LIMIT_LIMIT") | quote }}
+            - name: AUTO_FILL_ENABLED
+              value: {{ include "careto.backendEnvValue" (dict "root" . "key" "AUTO_FILL_ENABLED") | quote }}
+            - name: AUTO_FILL_INTERVAL_MS
+              value: {{ include "careto.backendEnvValue" (dict "root" . "key" "AUTO_FILL_INTERVAL_MS") | quote }}
             - name: ACCESS_TOKEN_TTL_SECONDS
               value: {{ include "careto.backendEnvValue" (dict "root" . "key" "ACCESS_TOKEN_TTL_SECONDS") | quote }}
             - name: REFRESH_TOKEN_TTL_SECONDS

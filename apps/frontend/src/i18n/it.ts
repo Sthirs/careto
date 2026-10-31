@@ -114,6 +114,7 @@ export const it = {
     removedAnnouncement: '{name} tolto dalla lista',
     actionFailed: 'Impossibile aggiornare la lista. Riprova.',
     fromDish: 'Per un piatto',
+    fromPlanner: 'Aggiunto dal pianificatore automatico',
     moreOptionsAria: 'Altre opzioni per {name}',
   },
 

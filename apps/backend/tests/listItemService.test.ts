@@ -41,6 +41,7 @@ const repo = () => ({
   delete: vi.fn(),
   update: vi.fn(),
   count: vi.fn(),
+  insert: vi.fn(),
 });
 
 let repos: Record<string, ReturnType<typeof repo>> & {
@@ -65,6 +66,7 @@ beforeEach(() => {
     customItemRepository: repo(),
     listItemRepository: repo(),
     listItemDishRepository: repo(),
+    listItemEventRepository: repo(),
     sectionOrderRepository: repo(),
     replaceSectionOrder: vi.fn(async (work: (orders: typeof orderTx) => Promise<void>) => work(orderTx)),
   };
@@ -73,6 +75,7 @@ beforeEach(() => {
 const r = () => repos as unknown as ListItemRepositories;
 const row = (overrides: Record<string, unknown>) => ({
   id: 'item-1',
+  shoppingListId: 'list-1',
   status: 'to_buy',
   source: 'user',
   lastBoughtAt: null,
@@ -232,14 +235,23 @@ describe('setListItemStatus', () => {
 
 describe('removeListItem', () => {
   it('deletes only within the list', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
     repos.listItemRepository.delete.mockResolvedValue({ affected: 1 });
     await removeListItem(r(), 'list-1', 'item-1', 'u1');
     expect(repos.listItemRepository.delete).toHaveBeenCalledWith({ id: 'item-1', shoppingListId: 'list-1' });
   });
 
+  it('404s an item of another list', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(null);
+    await expect(removeListItem(r(), 'list-1', 'item-1', 'u1')).rejects.toThrow('Item not found.');
+    expect(repos.listItemRepository.delete).not.toHaveBeenCalled();
+  });
+
   it('404s when nothing was deleted', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
     repos.listItemRepository.delete.mockResolvedValue({ affected: 0 });
     await expect(removeListItem(r(), 'list-1', 'item-1', 'u1')).rejects.toThrow('Item not found.');
+    expect(repos.listItemEventRepository.insert).not.toHaveBeenCalled();
   });
 });
 
@@ -336,5 +348,88 @@ describe('section order writes', () => {
     memberQuery.getOne.mockResolvedValue(null);
     await expect(replaceListSectionOrder(r(), 'list-1', [], 'u1')).rejects.toThrow(/not found/);
     expect(orderTx.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('item history (ADR-0027)', () => {
+  const event = (kind: string, source: string, userId: string | null = 'u1') => ({
+    shoppingListId: 'list-1',
+    catalogItemKey: 'milk',
+    customItemId: null,
+    kind,
+    source,
+    userId,
+  });
+  const events = () => repos.listItemEventRepository.insert.mock.calls.map(([logged]) => logged);
+
+  beforeEach(() => {
+    repos.catalogItemRepository.exists.mockResolvedValue(true);
+  });
+
+  it('logs a hand add that puts a new item to buy', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(null);
+    repos.listItemRepository.findOneOrFail.mockResolvedValue(row({ id: 'saved-id' }));
+    await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+    expect(events()).toEqual([event('added', 'user')]);
+  });
+
+  it('logs a hand add that reopens a bought item', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought', source: 'dish' }));
+    await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+    expect(events()).toEqual([event('added', 'user')]);
+  });
+
+  it('logs a hand add that claims a to-buy item of another source', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ source: 'recurring' }));
+    await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+    expect(events()).toEqual([event('added', 'user')]);
+  });
+
+  it('logs nothing when a to-buy hand item is added again', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    await addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1');
+    expect(events()).toEqual([]);
+  });
+
+  it('logs a buy with the reason the item was to buy', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ source: 'recurring' }));
+    await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
+    expect(events()).toEqual([event('bought', 'recurring')]);
+  });
+
+  it('logs no second buy for an item already bought', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought', lastBoughtAt: new Date() }));
+    await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1');
+    expect(events()).toEqual([]);
+  });
+
+  it('logs the undo of a mistaken buy', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', lastBoughtAt: new Date(Date.now() - 60_000) }),
+    );
+    await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+    expect(events()).toEqual([event('unbought', 'user')]);
+  });
+
+  it('logs a later put-back from Last used as a hand add', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'recurring', lastBoughtAt: new Date(Date.now() - 10 * 60_000) }),
+    );
+    await setListItemStatus(r(), 'list-1', 'item-1', 'to_buy', 'u1');
+    expect(events()).toEqual([event('added', 'user')]);
+  });
+
+  it('logs the removal of an item still to buy as "not finished yet"', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ source: 'recurring' }));
+    repos.listItemRepository.delete.mockResolvedValue({ affected: 1 });
+    await removeListItem(r(), 'list-1', 'item-1', 'u1');
+    expect(events()).toEqual([event('removed', 'recurring')]);
+  });
+
+  it('logs nothing when a bought item is removed', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
+    repos.listItemRepository.delete.mockResolvedValue({ affected: 1 });
+    await removeListItem(r(), 'list-1', 'item-1', 'u1');
+    expect(events()).toEqual([]);
   });
 });

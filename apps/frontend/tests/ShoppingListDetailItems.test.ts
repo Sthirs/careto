@@ -108,6 +108,21 @@ describe('ShoppingListDetailView items', () => {
     expect(wrapper.find('[data-testid="from-dish-badge"]').attributes('aria-label')).toBe('For a dish');
   });
 
+  it('marks items the automatic planner added with the planner badge', async () => {
+    itemsPayload.items[0] = listItem({ id: 'i1', source: 'recurring' });
+    const wrapper = await mountView();
+
+    const badged = wrapper
+      .findAll('[data-testid="list-item"][data-tone="to-buy"]')
+      .filter((tile) => tile.find('[data-testid="from-planner-badge"]').exists())
+      .map((tile) => tile.text());
+    expect(badged).toEqual(['Pineapple']);
+    expect(wrapper.find('[data-testid="from-planner-badge"]').attributes('aria-label')).toBe(
+      'Added by the automatic planner',
+    );
+    expect(wrapper.find('[data-testid="from-dish-badge"]').exists()).toBe(false);
+  });
+
   it('marks an item bought on tap and puts it back from Last used', async () => {
     vi.mocked(api.patch).mockImplementation(((url: string, body: { status: string }) =>
       Promise.resolve({ data: { item: listItem({ id: url.split('/').pop(), status: body.status as ListItem['status'], catalogItemKey: url.endsWith('i2') ? 'milk' : 'apricot', sectionKey: url.endsWith('i2') ? 'milk-cheese' : 'fruits-vegetables', lastBoughtAt: '2026-10-25T10:00:00Z' }) } })) as typeof api.patch);

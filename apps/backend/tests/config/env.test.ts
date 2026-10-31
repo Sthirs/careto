@@ -52,3 +52,40 @@ describe('VAPID_AUTO_GENERATE', () => {
     expect(env.VAPID_PRIVATE_KEY).toBe('configured-private-key');
   });
 });
+
+describe('AUTO_FILL_* (ADR-0027)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('runs the job hourly by default', async () => {
+    vi.stubEnv('AUTO_FILL_ENABLED', '');
+    vi.stubEnv('AUTO_FILL_INTERVAL_MS', '');
+
+    const { env } = await import('../../src/config/env');
+
+    expect(env.AUTO_FILL_ENABLED).toBe(true);
+    expect(env.AUTO_FILL_INTERVAL_MS).toBe(3600000);
+  });
+
+  it('turns the job off only with "false"', async () => {
+    vi.stubEnv('AUTO_FILL_ENABLED', 'false');
+
+    const { env } = await import('../../src/config/env');
+
+    expect(env.AUTO_FILL_ENABLED).toBe(false);
+  });
+
+  it('fails fast on an interval setInterval cannot honour', async () => {
+    vi.stubEnv('AUTO_FILL_INTERVAL_MS', '0');
+    await expect(import('../../src/config/env')).rejects.toThrow(/AUTO_FILL_INTERVAL_MS/);
+
+    vi.resetModules();
+    vi.stubEnv('AUTO_FILL_INTERVAL_MS', '2147483648');
+    await expect(import('../../src/config/env')).rejects.toThrow(/AUTO_FILL_INTERVAL_MS/);
+  });
+});
