@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/Sthirs/careto/compare/v1.2.1...v1.3.0) (2026-11-01)
+
+
+### Features
+
+* **catalog:** expand default catalog from supermarket assortment ([#24](https://github.com/Sthirs/careto/issues/24)) ([8b87c95](https://github.com/Sthirs/careto/commit/8b87c95124b4fdf52a962937c9202504a973c3d6))
+
+
+### Bug Fixes
+
+* **deps:** update minor and patch updates ([#27](https://github.com/Sthirs/careto/issues/27)) ([70efa24](https://github.com/Sthirs/careto/commit/70efa24f402b7d8b89319cf655a262bd1cc54b7d))
+* **deps:** update minor and patch updates ([#30](https://github.com/Sthirs/careto/issues/30)) ([a47a73e](https://github.com/Sthirs/careto/commit/a47a73ee4a36a473a60ddae7fdd4012288aabeef))
+* **renovate:** use string value for minimumReleaseAge ([#34](https://github.com/Sthirs/careto/issues/34)) ([293c639](https://github.com/Sthirs/careto/commit/293c639dcc34452b3be5ebbd853236a73f5d633e))
+
 ## [1.2.1](https://github.com/Sthirs/careto/compare/v1.2.0...v1.2.1) (2026-11-01)
 
 
