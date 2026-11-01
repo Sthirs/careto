@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/Sthirs/careto/compare/v1.2.0...v1.2.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **items:** share item icon and section overrides with dishes ([#21](https://github.com/Sthirs/careto/issues/21)) ([d6fc986](https://github.com/Sthirs/careto/commit/d6fc986995184abbb778d3e9eb86c4a3ca400ee3))
+
 ## [1.2.0](https://github.com/Sthirs/careto/compare/v1.1.0...v1.2.0) (2026-10-31)
 
 
