@@ -11,7 +11,6 @@ import {
 } from 'typeorm';
 
 import { CatalogItem } from './CatalogItem';
-import { CatalogSection } from './CatalogSection';
 import { ListCustomItem } from './ListCustomItem';
 import { ShoppingList } from './ShoppingList';
 import { User } from './User';
@@ -62,21 +61,6 @@ export class ListItem {
 
   @Column({ name: 'custom_item_id', type: 'uuid', nullable: true })
   customItemId!: string | null;
-
-  /**
-   * @deprecated Overrides live in `list_item_overrides` (ADR-0029); kept only
-   * so `DB_SYNC` keeps the column until the startup migration has emptied it.
-   */
-  @Column({ name: 'icon_key', type: 'varchar', length: 60, nullable: true })
-  iconKey!: string | null;
-
-  /** @deprecated See `iconKey`: moved to `list_item_overrides` (ADR-0029). */
-  @ManyToOne(() => CatalogSection, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'section_key' })
-  sectionOverride!: CatalogSection | null;
-
-  @Column({ name: 'section_key', type: 'varchar', length: 40, nullable: true })
-  sectionOverrideKey!: string | null;
 
   @Column({ type: 'enum', enum: LIST_ITEM_STATUSES, default: 'to_buy' })
   status!: ListItemStatus;
