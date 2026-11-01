@@ -11,6 +11,9 @@ export type ItemReference = Pick<ListItem, 'catalogItemKey' | 'customItemId'>;
 /** The icon and section a list chose for one item (ADR-0029). */
 export type ItemOverride = { iconKey: string | null; sectionKey: string | null };
 
+/** An override together with the item it belongs to. */
+export type SerializedItemOverride = ItemReference & ItemOverride;
+
 /** One change to an item's override; `null` clears it. */
 export type ItemOverridePatch = { iconKey: string | null } | { sectionKey: string | null };
 
@@ -32,12 +35,27 @@ const toOverride = (row: ListItemOverride): ItemOverride => ({
   sectionKey: row.sectionKey,
 });
 
+/** Every override the list holds, on the list or not. */
+export async function listOverrides(
+  repository: OverrideRepository,
+  shoppingListId: string,
+): Promise<SerializedItemOverride[]> {
+  const rows = await repository.find({ where: { shoppingListId } });
+  return rows.map((row) => ({
+    catalogItemKey: row.catalogItemKey,
+    customItemId: row.customItemId,
+    ...toOverride(row),
+  }));
+}
+
+export const toOverrideMap = (overrides: SerializedItemOverride[]): ItemOverrideMap =>
+  new Map(overrides.map((override) => [referenceKey(override), override]));
+
 export async function loadOverrides(
   repository: OverrideRepository,
   shoppingListId: string,
 ): Promise<ItemOverrideMap> {
-  const rows = await repository.find({ where: { shoppingListId } });
-  return new Map(rows.map((row) => [referenceKey(row), toOverride(row)]));
+  return toOverrideMap(await listOverrides(repository, shoppingListId));
 }
 
 export async function findOverride(

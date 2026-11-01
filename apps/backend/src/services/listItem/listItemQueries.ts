@@ -1,5 +1,10 @@
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
-import { referenceKey } from './itemOverrides';
+import {
+  listOverrides,
+  referenceKey,
+  toOverrideMap,
+  type SerializedItemOverride,
+} from './itemOverrides';
 import type { ListItemRepositories } from './listItemRepositories';
 import {
   serializeCustomItem,
@@ -14,13 +19,6 @@ export type ListItemsView = {
   customItems: SerializedCustomItem[];
   /** Every icon and section the list chose, on the list or not (ADR-0029). */
   overrides: SerializedItemOverride[];
-};
-
-export type SerializedItemOverride = {
-  catalogItemKey: string | null;
-  customItemId: string | null;
-  iconKey: string | null;
-  sectionKey: string | null;
 };
 
 /**
@@ -61,20 +59,13 @@ export async function getListItems(
     order: { name: 'ASC' },
   });
 
-  const overrideRows = await repositories.itemOverrideRepository.find({
-    where: { shoppingListId },
-  });
-  const overrides = new Map(overrideRows.map((row) => [referenceKey(row), row]));
+  const overrides = await listOverrides(repositories.itemOverrideRepository, shoppingListId);
+  const overrideMap = toOverrideMap(overrides);
 
   return {
     sectionOrder: await getSectionOrder(repositories, shoppingListId),
-    items: items.map((item) => serializeListItem(item, overrides.get(referenceKey(item)))),
+    items: items.map((item) => serializeListItem(item, overrideMap.get(referenceKey(item)))),
     customItems: customItems.map(serializeCustomItem),
-    overrides: overrideRows.map(({ catalogItemKey, customItemId, iconKey, sectionKey }) => ({
-      catalogItemKey,
-      customItemId,
-      iconKey,
-      sectionKey,
-    })),
+    overrides,
   };
 }
