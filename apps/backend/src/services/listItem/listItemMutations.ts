@@ -5,7 +5,8 @@ import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListIte
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import { recordItemEvent } from './itemEvents';
 import type { ListItemRepositories } from './listItemRepositories';
-import { serializeListItem, type SerializedListItem } from './listItemSerialization';
+import { serializeWithOverride, type ItemReference } from './itemOverrides';
+import type { SerializedListItem } from './listItemSerialization';
 
 /** Exactly one way to name the item being added. */
 export type AddListItemInput =
@@ -73,7 +74,7 @@ async function findOrCreateCustomItem(
   }
 }
 
-export type ItemReference = Pick<ListItem, 'catalogItemKey' | 'customItemId'>;
+export type { ItemReference };
 
 /** Resolves the input to the reference columns of a `list_items` row. */
 export async function resolveReference(
@@ -185,7 +186,7 @@ export async function addListItem(
     'user',
     userId,
   );
-  return { item: serializeListItem(item), created };
+  return { item: await serializeWithOverride(repositories, item), created };
 }
 
 export async function setListItemStatus(
@@ -196,7 +197,7 @@ export async function setListItemStatus(
   userId: string,
 ): Promise<SerializedListItem> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
-  if (item.status === status) return serializeListItem(item);
+  if (item.status === status) return serializeWithOverride(repositories, item);
 
   const now = new Date();
   const boughtAt = item.lastBoughtAt;
@@ -216,7 +217,10 @@ export async function setListItemStatus(
     changes,
   );
   if (!affected) {
-    return serializeListItem(await findMemberListItem(repositories, shoppingListId, itemId, userId));
+    return serializeWithOverride(
+      repositories,
+      await findMemberListItem(repositories, shoppingListId, itemId, userId),
+    );
   }
   Object.assign(item, changes);
 
@@ -238,7 +242,7 @@ export async function setListItemStatus(
     await recordItemEvent(repositories, item, 'added', 'user', userId);
   }
 
-  return serializeListItem(item);
+  return serializeWithOverride(repositories, item);
 }
 
 /**

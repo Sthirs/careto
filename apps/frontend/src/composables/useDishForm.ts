@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { SearchResult } from '@/composables/useItemSearch';
 import { api } from '@/lib/api';
-import { CUSTOM_ITEM_ICON, iconForItem } from '@/lib/itemIcons';
+import { iconForItem } from '@/lib/itemIcons';
 import type { Dish, DishIngredient } from '@/types/dish';
 import type { AddItemInput } from '@/types/listItem';
 
@@ -45,20 +45,27 @@ export function useDishForm(shoppingListId: () => string, dishId: () => string |
       ),
   );
 
-  const entryOf = (ingredient: DishIngredient): IngredientEntry =>
-    ingredient.customItem
+  // The same icon the item has on the list, chosen one included (ADR-0029).
+  const entryOf = (ingredient: DishIngredient): IngredientEntry => {
+    const icon = iconForItem(
+      ingredient.catalogItemKey,
+      ingredient.defaultSectionKey,
+      ingredient.iconKey,
+    );
+    return ingredient.customItem
       ? {
           key: `custom:${ingredient.customItem.id}`,
           label: ingredient.customItem.name,
-          icon: CUSTOM_ITEM_ICON,
+          icon,
           input: { customItemId: ingredient.customItem.id },
         }
       : {
           key: `catalog:${ingredient.catalogItemKey}`,
           label: t(`catalog.items.${ingredient.catalogItemKey}`),
-          icon: iconForItem(ingredient.catalogItemKey, ingredient.sectionKey),
+          icon,
           input: { catalogItemKey: ingredient.catalogItemKey as string },
         };
+  };
 
   const apply = (dish: Dish) => {
     name.value = dish.name;

@@ -1,6 +1,7 @@
 import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListItem';
 import { OWN_ITEMS_SECTION_KEY } from '../catalog/catalogData';
+import type { ItemOverride } from './itemOverrides';
 
 export type SerializedCustomItem = { id: string; name: string };
 
@@ -23,7 +24,10 @@ export function serializeCustomItem(customItem: ListCustomItem): SerializedCusto
 }
 
 /** Expects `catalogItem` / `customItem` to be loaded. */
-export function serializeListItem(item: ListItem): SerializedListItem {
+export function serializeListItem(
+  item: ListItem,
+  override: ItemOverride | null = null,
+): SerializedListItem {
   const defaultSectionKey = item.catalogItem?.sectionKey ?? OWN_ITEMS_SECTION_KEY;
   return {
     id: item.id,
@@ -32,8 +36,8 @@ export function serializeListItem(item: ListItem): SerializedListItem {
     lastBoughtAt: item.lastBoughtAt ? item.lastBoughtAt.toISOString() : null,
     catalogItemKey: item.catalogItemKey,
     customItem: item.customItem ? serializeCustomItem(item.customItem) : null,
-    sectionKey: item.sectionOverrideKey ?? defaultSectionKey,
+    sectionKey: override?.sectionKey ?? defaultSectionKey,
     defaultSectionKey,
-    iconKey: item.iconKey ?? null,
+    iconKey: override?.iconKey ?? null,
   };
 }

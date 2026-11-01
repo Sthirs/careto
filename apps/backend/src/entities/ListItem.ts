@@ -63,11 +63,14 @@ export class ListItem {
   @Column({ name: 'custom_item_id', type: 'uuid', nullable: true })
   customItemId!: string | null;
 
-  /** A catalog item key whose icon replaces this item's own (ADR-0026). */
+  /**
+   * @deprecated Overrides live in `list_item_overrides` (ADR-0029); kept only
+   * so `DB_SYNC` keeps the column until the startup migration has emptied it.
+   */
   @Column({ name: 'icon_key', type: 'varchar', length: 60, nullable: true })
   iconKey!: string | null;
 
-  /** A store section that replaces the item's own on this list (ADR-0026). */
+  /** @deprecated See `iconKey`: moved to `list_item_overrides` (ADR-0029). */
   @ManyToOne(() => CatalogSection, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'section_key' })
   sectionOverride!: CatalogSection | null;

@@ -11,6 +11,7 @@ import { ListCustomItem } from '../entities/ListCustomItem';
 import { ListItem } from '../entities/ListItem';
 import { ListItemDish } from '../entities/ListItemDish';
 import { ListItemEvent } from '../entities/ListItemEvent';
+import { ListItemOverride } from '../entities/ListItemOverride';
 import { ListSectionOrder } from '../entities/ListSectionOrder';
 import { ShoppingList } from '../entities/ShoppingList';
 import { Invitation } from '../entities/Invitation';
@@ -41,6 +42,7 @@ export const AppDataSource = new DataSource({
     DishIngredient,
     ListItemDish,
     ListItemEvent,
+    ListItemOverride,
     WeekSlot,
   ],
 });

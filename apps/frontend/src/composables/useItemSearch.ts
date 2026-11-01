@@ -1,9 +1,9 @@
-import { computed, type ComputedRef, type Ref } from 'vue';
+import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { CUSTOM_ITEM_ICON, ITEM_ICONS, SECTION_ICONS } from '@/lib/itemIcons';
+import { CUSTOM_ITEM_ICON, iconForItem } from '@/lib/itemIcons';
 import { hasExactMatch, searchItems, type SearchEntry } from '@/lib/itemSearch';
-import type { AddItemInput, Catalog, CustomItem } from '@/types/listItem';
+import type { AddItemInput, Catalog, CustomItem, SavedItemOverride } from '@/types/listItem';
 
 export type SearchResult = {
   id: string;
@@ -20,13 +20,15 @@ export type SearchResult = {
  * Search results for the list screen and the dish form: matching catalog and
  * custom items in the active locale, then a row to add the query as a new
  * custom item unless something matches it exactly. `taken` holds the catalog
- * keys and custom item ids that are already picked.
+ * keys and custom item ids that are already picked. Results show the icon
+ * the list chose for an item, if any (ADR-0029).
  */
 export function useItemSearch(
   query: Ref<string>,
   catalog: Ref<Catalog | null>,
   customItems: Ref<CustomItem[]>,
   taken: Ref<Set<string>>,
+  overrides: Ref<SavedItemOverride[]> = ref([]),
 ): ComputedRef<SearchResult[]> {
   const { t, locale } = useI18n();
 
@@ -43,6 +45,16 @@ export function useItemSearch(
     () => new Map((catalog.value?.items ?? []).map((item) => [item.key, item.sectionKey])),
   );
 
+  const chosenIcon = computed(
+    () =>
+      new Map(
+        overrides.value.map((saved) => [
+          saved.customItemId ?? saved.catalogItemKey ?? '',
+          saved.iconKey,
+        ]),
+      ),
+  );
+
 
   return computed(() => {
     const typed = query.value.trim();
@@ -53,10 +65,11 @@ export function useItemSearch(
         ? {
             id: `catalog:${entry.key}`,
             label: entry.label,
-            icon:
-              ITEM_ICONS[entry.key] ??
-              SECTION_ICONS[sectionOf.value.get(entry.key) ?? ''] ??
-              CUSTOM_ITEM_ICON,
+            icon: iconForItem(
+              entry.key,
+              sectionOf.value.get(entry.key) ?? '',
+              chosenIcon.value.get(entry.key) ?? null,
+            ),
             taken: taken.value.has(entry.key),
             isNewCustom: false,
             input: { catalogItemKey: entry.key },
@@ -64,7 +77,7 @@ export function useItemSearch(
         : {
             id: `custom:${entry.id}`,
             label: entry.label,
-            icon: CUSTOM_ITEM_ICON,
+            icon: iconForItem(null, '', chosenIcon.value.get(entry.id) ?? null),
             taken: taken.value.has(entry.id),
             isNewCustom: false,
             input: { customItemId: entry.id },

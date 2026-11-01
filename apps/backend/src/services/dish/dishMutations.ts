@@ -3,6 +3,7 @@ import {
   type AddListItemInput,
   type ItemReference,
 } from '../listItem/listItemMutations';
+import { referenceKey } from '../listItem/itemOverrides';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import { findDish, serializeWithStatus } from './dishQueries';
 import type { DishRepositories, DishTables } from './dishRepositories';
@@ -10,9 +11,6 @@ import type { SerializedDish } from './dishSerialization';
 
 /** A dish as the form sends it: a name and at least one ingredient. */
 export type DishInput = { name: string; ingredients: AddListItemInput[] };
-
-const referenceKey = (reference: ItemReference) =>
-  reference.catalogItemKey ? `catalog:${reference.catalogItemKey}` : `custom:${reference.customItemId}`;
 
 /**
  * Resolves every ingredient (creating custom items as needed) outside the

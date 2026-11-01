@@ -82,6 +82,7 @@ beforeEach(() => {
     listItemRepository: repo(),
     listItemDishRepository: repo(),
     listItemEventRepository: repo(),
+    itemOverrideRepository: repo(),
     dishRepository: repo(),
     dishIngredientRepository: repo(),
   } as unknown as FakeRepos;
@@ -105,6 +106,33 @@ describe('listDishes', () => {
       ['dish-2', false],
     ]);
     expect(dishes[0].ingredients.map((i) => i.catalogItemKey)).toEqual(['pasta', 'ground-meat']);
+  });
+
+  it("shows each ingredient with the list's chosen icon and section", async () => {
+    const custom = {
+      id: 'ing-c1',
+      catalogItemKey: null,
+      catalogItem: null,
+      customItemId: 'c1',
+      customItem: { id: 'c1', name: 'Kombucha' },
+      position: 1,
+    };
+    repos.dishRepository.find.mockResolvedValue([
+      dish({ ingredients: [ingredient('pasta', 0), custom] }),
+    ] as never);
+    repos.itemOverrideRepository.find.mockResolvedValue([
+      { catalogItemKey: null, customItemId: 'c1', iconKey: 'coffee', sectionKey: 'beverages' },
+    ] as never);
+
+    const [served] = await listDishes(r(), 'list-1', 'u1');
+
+    expect(repos.itemOverrideRepository.find).toHaveBeenCalledWith({
+      where: { shoppingListId: 'list-1' },
+    });
+    expect(served.ingredients).toMatchObject([
+      { catalogItemKey: 'pasta', iconKey: null, sectionKey: 'pantry', defaultSectionKey: 'pantry' },
+      { customItem: { id: 'c1' }, iconKey: 'coffee', sectionKey: 'beverages', defaultSectionKey: 'own-items' },
+    ]);
   });
 
   it('rejects non-members', async () => {

@@ -1,4 +1,10 @@
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
+import {
+  listOverrides,
+  referenceKey,
+  toOverrideMap,
+  type SerializedItemOverride,
+} from './itemOverrides';
 import type { ListItemRepositories } from './listItemRepositories';
 import {
   serializeCustomItem,
@@ -11,6 +17,8 @@ export type ListItemsView = {
   sectionOrder: string[];
   items: SerializedListItem[];
   customItems: SerializedCustomItem[];
+  /** Every icon and section the list chose, on the list or not (ADR-0029). */
+  overrides: SerializedItemOverride[];
 };
 
 /**
@@ -51,9 +59,13 @@ export async function getListItems(
     order: { name: 'ASC' },
   });
 
+  const overrides = await listOverrides(repositories.itemOverrideRepository, shoppingListId);
+  const overrideMap = toOverrideMap(overrides);
+
   return {
     sectionOrder: await getSectionOrder(repositories, shoppingListId),
-    items: items.map(serializeListItem),
+    items: items.map((item) => serializeListItem(item, overrideMap.get(referenceKey(item)))),
     customItems: customItems.map(serializeCustomItem),
+    overrides,
   };
 }
