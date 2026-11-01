@@ -21,4 +21,13 @@ export const breadPastriesIcons: Readonly<Record<string, string>> = {
   waffles: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2z M4 9.3h16 M4 14.7h16 M9.3 4v16 M14.7 4v16',
   'pumpkin-pie': 'M3 18L19 6c2 2 3 6 2 9z M3 18v2l18-3v-2 M17 9c1 1 1.5 3 1 5',
   'dinner-rolls': 'M2 16a5 4 0 0 1 10 0z M12 16a5 4 0 0 1 10 0z M7 12a5 4 0 0 1 10 0 M2 16h20v2H2z',
+  piadina: 'M3 15a9 9 0 0 1 18 0z M3 15c2 2.5 16 2.5 18 0 M8 11h.01 M12 9h.01 M15.5 11.5h.01',
+  breadsticks: 'M7 21h10l-1-8H8z M9 13L7 3 M11 13l-.5-10 M13 13l.5-10 M15 13l2-10',
+  crackers: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2z M8 8h.01 M12 8h.01 M16 8h.01 M8 12h.01 M12 12h.01 M16 12h.01 M8 16h.01 M12 16h.01 M16 16h.01',
+  'rice-cakes': 'M4 8c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 8v3c0 1.7 3.6 3 8 3s8-1.3 8-3V8 M4 13v3c0 1.7 3.6 3 8 3s8-1.3 8-3v-3 M9 7.5h.01 M13 7h.01 M15 8.5h.01',
+  taralli: 'M2.5 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0z M5 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z M12.5 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0z M15 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z M4 8.5l2 1.5 M14 8.5l2 1.5',
+  focaccia: 'M3 7h18v11H3z M7 10.5h.01 M12 10.5h.01 M17 10.5h.01 M9.5 14.5h.01 M14.5 14.5h.01 M3 18l-1 2 M21 18l1 2',
+  croutons: 'M5 10a4 4 0 0 1 3-7h8a4 4 0 0 1 3 7v10H5z M10 11h4v3h-4z',
+  'shortcrust-pastry': 'M3 9l9-4 9 4-9 4z M3 9v5l9 4 9-4V9 M3 11.5l9 4 9-4',
+  sandwiches: 'M5 10a4 4 0 0 1 3-7h8a4 4 0 0 1 3 7v10H5z M10 11h4v3h-4z',
 };

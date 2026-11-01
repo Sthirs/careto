@@ -22,4 +22,12 @@ export const breadPastries: readonly string[] = [
   'pumpkin-pie',
   'dinner-rolls',
   'piadina',
+  'breadsticks',
+  'crackers',
+  'rice-cakes',
+  'taralli',
+  'focaccia',
+  'croutons',
+  'shortcrust-pastry',
+  'sandwiches',
 ];

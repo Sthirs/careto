@@ -29,6 +29,10 @@ describe('catalog coverage', () => {
     expect(Object.keys(ITEM_ICONS).filter((key) => !itemKeys.includes(key))).toEqual([]);
   });
 
+  it('gives every catalog item its own icon', () => {
+    expect(itemKeys.filter((key) => !ITEM_ICONS[key])).toEqual([]);
+  });
+
   it('has unique item keys', () => {
     expect(new Set(itemKeys).size).toBe(itemKeys.length);
   });

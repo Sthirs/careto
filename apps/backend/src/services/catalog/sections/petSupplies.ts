@@ -8,4 +8,6 @@ export const petSupplies: readonly string[] = [
   'cat-treats',
   'cat-litter',
   'bird-food',
+  'small-pet-food',
+  'pet-toys',
 ];

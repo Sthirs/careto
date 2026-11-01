@@ -1,14 +1,19 @@
 import { fruitsVegetablesIcons } from './fruitsVegetables';
 import { breadPastriesIcons } from './breadPastries';
+import { deliIcons } from './deli';
 import { milkCheeseIcons } from './milkCheese';
 import { meatFishIcons } from './meatFish';
-import { ingredientsSpicesIcons } from './ingredientsSpices';
-import { frozenConvenienceIcons } from './frozenConvenience';
+import { breakfastIcons } from './breakfast';
 import { grainProductsIcons } from './grainProducts';
+import { cannedGoodsIcons } from './cannedGoods';
+import { ingredientsSpicesIcons } from './ingredientsSpices';
 import { snacksSweetsIcons } from './snacksSweets';
+import { frozenConvenienceIcons } from './frozenConvenience';
 import { beveragesIcons } from './beverages';
+import { wineSpiritsIcons } from './wineSpirits';
 import { householdIcons } from './household';
 import { careHealthIcons } from './careHealth';
+import { babyIcons } from './baby';
 import { petSuppliesIcons } from './petSupplies';
 import { homeGardenIcons } from './homeGarden';
 
@@ -16,15 +21,20 @@ import { homeGardenIcons } from './homeGarden';
 export const ITEM_ICONS: Readonly<Record<string, string>> = {
   ...fruitsVegetablesIcons,
   ...breadPastriesIcons,
+  ...deliIcons,
   ...milkCheeseIcons,
   ...meatFishIcons,
-  ...ingredientsSpicesIcons,
-  ...frozenConvenienceIcons,
+  ...breakfastIcons,
   ...grainProductsIcons,
+  ...cannedGoodsIcons,
+  ...ingredientsSpicesIcons,
   ...snacksSweetsIcons,
+  ...frozenConvenienceIcons,
   ...beveragesIcons,
+  ...wineSpiritsIcons,
   ...householdIcons,
   ...careHealthIcons,
+  ...babyIcons,
   ...petSuppliesIcons,
   ...homeGardenIcons,
 };
@@ -44,6 +54,11 @@ export const SECTION_ICONS: Readonly<Record<string, string>> = {
   'care-health': 'M10 2h4v3h-4z M9 5h6l2 3v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V8z M9 12c1 1 2 2 3 2s2-1 3-2',
   'pet-supplies': 'M3 15h18l-2 5H5z M8 9a1.5 1.5 0 1 0-1.5 2 1.5 1.5 0 1 0 1.5 2h8a1.5 1.5 0 1 0 1.5-2 1.5 1.5 0 1 0-1.5-2z',
   'home-garden': 'M12 21V11 M12 11c-3 0-5-2-5-6l2.5 2L12 3l2.5 4L17 5c0 4-2 6-5 6z M12 17c-2-2-4-2-6-1 2 2 4 2 6 1z M12 15c2-2 4-2 6-1-2 2-4 2-6 1z',
+  deli: 'M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0z M9 9h.01 M14 8h.01 M15.5 13h.01 M10 15.5h.01 M12 12h.01',
+  breakfast: 'M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z M16 10h2a2 2 0 0 1 0 4h-2 M8 2v3 M11 2v3',
+  'canned-goods': 'M6 5a6 2 0 0 0 12 0a6 2 0 0 0-12 0 M6 5v14a6 2 0 0 0 12 0V5 M9 13.6a3 3 0 1 0 6 0a3 3 0 1 0 -6 0z M12 10.6v-1.6 M10.5 10.4l1.5 .8 1.5-.8',
+  'wine-spirits': 'M7 3h10c0 5-2 8.5-5 8.5S7 8 7 3z M12 11.5V20 M8 21h8 M7.5 6.5h9',
+  baby: 'M10 2h4v2h-4z M9 4h6l1 3H8z M8 7h8v12a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z M8 11h3 M8 14h3 M8 17h3',
 };
 
 /** Icon for custom items (a tag). */

@@ -1,0 +1,26 @@
+// Default items of the `breakfast` section, as stable keys (ADR-0014).
+
+export const breakfast: readonly string[] = [
+  'coffee',
+  'coffee-beans',
+  'coffee-pads',
+  'coffee-capsules',
+  'tea',
+  'hot-chocolate',
+  'cookies',
+  'corn-flakes',
+  'cereal',
+  'muesli',
+  'cereal-bar',
+  'jam',
+  'honey',
+  'nougat-cream',
+  'snack-cake',
+  'oatmeal',
+  'peanut-butter',
+  'rusks',
+  'chamomile',
+  'herbal-tea',
+  'barley-coffee',
+  'ladyfingers',
+];
