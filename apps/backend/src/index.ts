@@ -3,7 +3,6 @@ import { env } from './config/env';
 import { initializeDatabase } from './db/data-source';
 import { initOAuthProviders } from './services/oauth/providerRegistry';
 import { runAutoFill } from './services/listItem/autoFill';
-import { migrateItemOverrides } from './services/listItem/migrateItemOverrides';
 import { pruneExpiredRefreshTokens } from './services/refreshTokenService';
 import { syncCatalog } from './services/catalogService';
 import { seedDatabase } from './services/seedService';
@@ -14,9 +13,6 @@ const bootstrap = async () => {
   // Reference data, needed in every environment (ADR-0023): unlike the demo
   // seed it is not gated by SEED_ON_STARTUP.
   await syncCatalog();
-
-  // ADR-0029: icon and section overrides moved off `list_items`.
-  await migrateItemOverrides();
 
   // OAuth discovery is lazy + non-fatal: a misconfigured or unreachable
   // OAuth IdP logs an error and leaves the provider un-registered; the
