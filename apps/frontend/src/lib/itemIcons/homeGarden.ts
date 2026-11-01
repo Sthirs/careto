@@ -16,4 +16,10 @@ export const homeGardenIcons: Readonly<Record<string, string>> = {
   'watering-can': 'M4 9h11v11H4z M15 12l6-5 M19 5.5l3 2.5 M6 9c0-3 2-5 4-5s4 2 4 5',
   plants: 'M6 14h12l-2 7H8z M12 14V8 M12 10c-3 0-5-2-5-5 3 0 5 2 5 5z M12 8c3 0 5-2 5-5-3 0-5 2-5 5z',
   lawnmower: 'M4 13h13l2-3 M19 10l2-7 M4 13v4h15v-4 M5 19.5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z M14 19.5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z',
+  notebook: 'M6 3h12v18H6z M9 3v18 M4 7h4 M4 12h4 M4 17h4 M12 8h4 M12 11h4',
+  pens: 'M15 3l6 6-11 11H4v-6z M13 5l6 6 M4 20l3-3',
+  firelighters: 'M3 18l3-4 4 1 2-3 4 1 4 5z M8 10c1-2 0-3 1-5 M13 8c1-2 0-3 1-5',
+  pellets: 'M3 18l3-4 4 1 2-3 4 1 4 5z M8 10c1-2 0-3 1-5 M13 8c1-2 0-3 1-5',
+  tape: 'M6 3h12v18H6z M9 3v18 M4 7h4 M4 12h4 M4 17h4 M12 8h4 M12 11h4',
+  glue: 'M6 3h12v18H6z M9 3v18 M4 7h4 M4 12h4 M4 17h4 M12 8h4 M12 11h4',
 };

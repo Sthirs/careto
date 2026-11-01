@@ -1,0 +1,25 @@
+// Default items of the `wine-spirits` section, as stable keys (ADR-0014).
+
+export const wineSpirits: readonly string[] = [
+  'beer',
+  'champagne',
+  'cider',
+  'gin',
+  'prosecco',
+  'red-wine',
+  'rum',
+  'spirits',
+  'vodka',
+  'white-wine',
+  'whiskey',
+  'aperitif',
+  'rose-wine',
+  'sparkling-wine',
+  'dessert-wine',
+  'vermouth',
+  'amaro',
+  'limoncello',
+  'liqueur',
+  'brandy',
+  'tequila',
+];

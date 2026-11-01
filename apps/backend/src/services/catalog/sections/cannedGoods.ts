@@ -1,0 +1,26 @@
+// Default items of the `canned-goods` section, as stable keys (ADR-0014).
+
+export const cannedGoods: readonly string[] = [
+  'canned-tomatoes',
+  'tomato-puree',
+  'tomato-sauce',
+  'pasta-sauce',
+  'beans',
+  'lentils',
+  'chickpeas',
+  'tuna',
+  'anchovies',
+  'capers',
+  'sun-dried-tomatoes',
+  'baked-beans',
+  'passata',
+  'pesto',
+  'pickles',
+  'ragu',
+  'vegetables-in-oil',
+  'mackerel',
+  'sardines',
+  'sauerkraut',
+  'canned-fruit',
+  'canned-meat',
+];

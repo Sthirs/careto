@@ -1,0 +1,25 @@
+// Icon paths (24x24 line style) for the `wine-spirits` catalog section.
+
+export const wineSpiritsIcons: Readonly<Record<string, string>> = {
+  beer: 'M5 7h10v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z M15 10h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2 M5 7c0-2 1-3 3-3 1-1 3-1 4 0 2 0 3 1 3 3 M8.5 11v6 M11.5 11v6',
+  champagne: 'M5 3h5l-.5 7a2 2 0 0 1-4 0z M7.5 12v8 M5 21h5 M14 3h5l.5 7a2 2 0 0 1-4 0z M16.5 12v8 M14 21h5 M11 2l1 1 M13 2l-1 1',
+  cider: 'M11 1.5h2v5h-2z M11 6.5c-2 1-3 2.2-3 4V20a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-9.5c0-1.8-1-3-3-4 M12 13.5c-1-.8-3.2-.5-3.2 1.6 0 2 1.6 3.6 3.2 3.1 1.6.5 3.2-1.1 3.2-3.1 0-2.1-2.2-2.4-3.2-1.6z M12 13.5c0-1 .5-1.6 1.2-2',
+  gin: 'M10 2h4v3h-4z M7 7h10v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z M10 5h4l3 2H7z M9 12h6v5H9z',
+  prosecco: 'M10 2h4v3h-4z M10 5v3c-3 1-3 3-3 5v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-7c0-2 0-4-3-5V5 M7 14h10',
+  'red-wine': 'M7 3h10c0 5-2 8.5-5 8.5S7 8 7 3z M12 11.5V20 M8 21h8 M7.5 6.5h9',
+  rum: 'M10 2h4v4h-4z M10 6c-4 1-5 4-5 7v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6c0-3-1-6-5-7 M8 13h8v4H8z',
+  spirits: 'M4 8h6l-1 12H5z M14 8h6l-1 12h-4z M4.3 12h5.4 M14.3 12h5.4',
+  vodka: 'M10.5 1h3v4h-3z M10.5 5L9 7v13a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V7l-1.5-2 M9 10h6v6H9z',
+  'white-wine': 'M11 1.5h2v5h-2z M11 6.5c-2 1-3 2.2-3 4V20a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-9.5c0-1.8-1-3-3-4 M8 13h8v4h-8z',
+  whiskey: 'M5 7h14l-1 13H6z M5.5 12h13 M8 13.5h3.5v3.5h-3.5z M12.5 14.5h3v3h-3z',
+  aperitif: 'M6 3h12l-1 7a5 5 0 0 1-10 0z M12 15v6 M8 21h8 M6.5 6.5h11 M15 3l3-2',
+  'rose-wine': 'M7 3h10c0 5-2 8.5-5 8.5S7 8 7 3z M12 11.5V20 M8 21h8 M7.5 6.5h9',
+  'sparkling-wine': 'M10 2h4v3h-4z M10 5v3c-3 1-3 3-3 5v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-7c0-2 0-4-3-5V5 M7 14h10',
+  'dessert-wine': 'M11 1.5h2v5h-2z M11 6.5c-2 1-3 2.2-3 4V20a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-9.5c0-1.8-1-3-3-4 M8 13h8v4h-8z',
+  vermouth: 'M6 3h12l-1 7a5 5 0 0 1-10 0z M12 15v6 M8 21h8 M6.5 6.5h11 M15 3l3-2',
+  amaro: 'M4 8h6l-1 12H5z M14 8h6l-1 12h-4z M4.3 12h5.4 M14.3 12h5.4',
+  limoncello: 'M4 8h6l-1 12H5z M14 8h6l-1 12h-4z M4.3 12h5.4 M14.3 12h5.4',
+  liqueur: 'M4 8h6l-1 12H5z M14 8h6l-1 12h-4z M4.3 12h5.4 M14.3 12h5.4',
+  brandy: 'M5 7h14l-1 13H6z M5.5 12h13 M8 13.5h3.5v3.5h-3.5z M12.5 14.5h3v3h-3z',
+  tequila: 'M4 8h6l-1 12H5z M14 8h6l-1 12h-4z M4.3 12h5.4 M14.3 12h5.4',
+};

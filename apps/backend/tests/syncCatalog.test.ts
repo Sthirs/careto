@@ -34,4 +34,15 @@ describe('syncCatalog', () => {
     expect(upserts[1].rows).toHaveLength(catalogItemRows().length);
     expect(catalogItemRows()).toContainEqual({ key: 'pineapple', sectionKey: 'fruits-vegetables' });
   });
+
+  it('files moved and new items under the expanded sections', () => {
+    const rows = catalogItemRows();
+    expect(rows).toContainEqual({ key: 'prosciutto', sectionKey: 'deli' });
+    expect(rows).toContainEqual({ key: 'ham', sectionKey: 'deli' });
+    expect(rows).toContainEqual({ key: 'coffee', sectionKey: 'breakfast' });
+    expect(rows).toContainEqual({ key: 'red-wine', sectionKey: 'wine-spirits' });
+    expect(rows).toContainEqual({ key: 'passata', sectionKey: 'canned-goods' });
+    expect(rows).toContainEqual({ key: 'formula-milk', sectionKey: 'baby' });
+    expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length);
+  });
 });

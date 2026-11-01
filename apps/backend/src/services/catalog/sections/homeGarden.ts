@@ -16,4 +16,10 @@ export const homeGarden: readonly string[] = [
   'watering-can',
   'plants',
   'lawnmower',
+  'notebook',
+  'pens',
+  'firelighters',
+  'pellets',
+  'tape',
+  'glue',
 ];

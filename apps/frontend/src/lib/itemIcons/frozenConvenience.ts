@@ -1,7 +1,6 @@
 // Icon paths (24x24 line style) for the `frozen-convenience` catalog section.
 
 export const frozenConvenienceIcons: Readonly<Record<string, string>> = {
-  'baked-beans': 'M6 5a6 2 0 0 0 12 0a6 2 0 0 0-12 0 M6 5v14a6 2 0 0 0 12 0V5 M8.8 13a1.4 2 0 1 0 2.8 0a1.4 2 0 1 0 -2.8 0z M12.4 13.5a1.4 2 0 1 0 2.8 0a1.4 2 0 1 0 -2.8 0z',
   burritos: 'M4 16L14 6c2-2 5-2 6 0s0 4-2 6L8 22 M4 16l4 6 M12 8l4 4 M9 11l4 4',
   'chicken-wings': 'M5 19c-2-2-1-5 2-7l6-5c3-2 6-2 7 0s0 4-3 6l-6 4c-2 2-4 4-6 2z M14 7l2 2 M9 12l3 3',
   'chinese-food': 'M5 9h14l-2 12H7z M5 9l3-4h8l3 4 M10 13h4 M15 3l4-2 M14 4.5l5-1',
@@ -18,4 +17,9 @@ export const frozenConvenienceIcons: Readonly<Record<string, string>> = {
   soup: 'M3 12h18a9 7 0 0 1-18 0z M8 9c0-1.5 1-2 0-3.5 M12 9c0-1.5 1-2 0-3.5 M16 9c0-1.5 1-2 0-3.5 M18 12l4-7',
   'tv-dinner': 'M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2z M12 6v12 M12 12h9',
   'thai-food': 'M3 12h18a9 7 0 0 1-18 0z M13 10L20 3 M15 10l6-5 M6 10c2.5-1 4-.5 5-3',
+  'ice-pops': 'M7 9a5 5 0 0 1 10 0v8H7z M12 17v5 M10 9v5 M14 9v5',
+  croquettes: 'M6 10h12l-1.5 11h-9z M7 10L6 3 M10 10V3 M14 10V4 M17.5 10l1-6 M8.5 10L8 5 M12 10V2 M15.5 10l.5-5',
+  'chicken-nuggets': 'M5 19c-2-2-1-5 2-7l6-5c3-2 6-2 7 0s0 4-3 6l-6 4c-2 2-4 4-6 2z M14 7l2 2 M9 12l3 3',
+  'veggie-burger': 'M4 10c0-4 3.5-6 8-6s8 2 8 6z M3 13h18 M4 16h16v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z M9 7h.01 M13 6.5h.01',
+  soffritto: 'M6 3h12l-1 2 1 2v11l1 2-1 1H6l-1-1 1-2V7L5 5z M6 7h12 M6 18h12 M12 9v7 M9 10.75l6 3.5 M15 10.75l-6 3.5',
 };
