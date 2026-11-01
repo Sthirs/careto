@@ -85,11 +85,13 @@ export class ShoppingListDetailPage {
     const box = await tile.boundingBox();
     if (!box) throw new Error(`swipeRemove: no tile for ${itemName}`);
     const y = box.y + box.height / 2;
+    const removed = this.itemWritten('DELETE');
     await this.page.mouse.move(box.x + box.width - 10, y);
     await this.page.mouse.down();
     await this.page.mouse.move(box.x + box.width / 2, y, { steps: 5 });
     await this.page.mouse.move(box.x + 10, y, { steps: 5 });
     await this.page.mouse.up();
+    await removed;
   }
 
   // ItemMenuSheet.vue: the ⋮ sheet of a to-buy tile (ADR-0026).
