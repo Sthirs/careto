@@ -12,7 +12,7 @@ frontend:
   replicaCount: 1
   image:
     repository: ghcr.io/sthirs/careto/frontend
-    tag: ""
+    tag: "@sha256:780dccd1cf5903ce1a059ba013f3d6e2443c7b485fb49f91e3ae4f8997c959ba"
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -23,7 +23,7 @@ backend:
   replicaCount: 1
   image:
     repository: ghcr.io/sthirs/careto/backend
-    tag: ""
+    tag: "@sha256:9e8a002a579e62f8f5add1ad9863aaa19e000ade8ef5c66a897a473ae0d4dd7d"
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
