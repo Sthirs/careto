@@ -5,6 +5,11 @@
     {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "minor and patch updates"
+    },
+    {
+      "description": "Own images are versioned by release-please via Chart.yaml appVersion",
+      "matchPackageNames": ["ghcr.io/sthirs/careto/**"],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
