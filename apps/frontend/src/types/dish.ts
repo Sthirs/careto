@@ -4,7 +4,12 @@ export type DishIngredient = {
   id: string;
   catalogItemKey: string | null;
   customItem: CustomItem | null;
+  /** The list's chosen section for the item, else its own (ADR-0029). */
   sectionKey: string;
+  /** The item's own section, before any override. */
+  defaultSectionKey: string;
+  /** The list's chosen icon for the item, if any (ADR-0029). */
+  iconKey: string | null;
 };
 
 export type Dish = {

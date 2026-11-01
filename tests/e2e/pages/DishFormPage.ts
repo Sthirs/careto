@@ -48,6 +48,21 @@ export class DishFormPage {
     return (await this.ingredientsList().getByRole('listitem').allInnerTexts()).map((text) => text.trim());
   }
 
+  /** The `d` of an ingredient's item icon, to compare with the list's. */
+  async ingredientIconPath(name: string): Promise<string | null> {
+    return this.ingredientsList()
+      .getByRole('listitem')
+      .filter({ hasText: name })
+      .locator('svg path')
+      .first()
+      .getAttribute('d');
+  }
+
+  /** The `d` of a search result's item icon. */
+  async searchResultIconPath(name: string): Promise<string | null> {
+    return this.searchResult(name).locator('svg path').first().getAttribute('d');
+  }
+
   async uploadPhoto(): Promise<void> {
     await this.page.getByTestId('dish-photo-input').setInputFiles(resolve('tests/e2e/fixtures/test-image.png'));
   }

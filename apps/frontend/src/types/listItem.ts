@@ -23,10 +23,19 @@ export type ListItem = {
 /** One override of a list item (ADR-0026); `null` clears it. */
 export type ListItemOverride = { iconKey: string | null } | { sectionKey: string | null };
 
+/** An icon or section the list chose for an item, on the list or not (ADR-0029). */
+export type SavedItemOverride = {
+  catalogItemKey: string | null;
+  customItemId: string | null;
+  iconKey: string | null;
+  sectionKey: string | null;
+};
+
 export type ListItemsResponse = {
   sectionOrder: string[];
   items: ListItem[];
   customItems: CustomItem[];
+  overrides: SavedItemOverride[];
 };
 
 /** The default item catalog: keys only, labels come from `catalog.*` i18n. */

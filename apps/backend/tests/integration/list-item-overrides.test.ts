@@ -56,6 +56,44 @@ describe('list item overrides and section order API', () => {
     expect((await patchItem(owner.token, shoppingListId, itemId, { sectionKey: 'own-items' })).status).toBe(400);
   });
 
+  it('shows the chosen icon and section on dish ingredients and keeps them after removal', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('overrides-shared');
+    const added = await createJsonRequest<{ item: Item & { customItem: { id: string } } }>(
+      itemsPath(shoppingListId),
+      { method: 'POST', headers: bearer(owner.token), body: JSON.stringify({ customName: 'Kombucha' }) },
+    );
+    const { id: itemId, customItem } = added.body.item;
+    await patchItem(owner.token, shoppingListId, itemId, { iconKey: 'coffee' });
+    await patchItem(owner.token, shoppingListId, itemId, { sectionKey: 'beverages' });
+
+    const dish = await createJsonRequest<{ dish: { ingredients: Array<Record<string, unknown>> } }>(
+      `/api/lists/${shoppingListId}/dishes`,
+      {
+        method: 'POST',
+        headers: bearer(owner.token),
+        body: JSON.stringify({ name: 'Brunch', ingredients: [{ customItemId: customItem.id }] }),
+      },
+    );
+    expect(dish.body.dish.ingredients[0]).toMatchObject({
+      iconKey: 'coffee',
+      sectionKey: 'beverages',
+      defaultSectionKey: 'own-items',
+    });
+
+    const removed = await createJsonRequest(`${itemsPath(shoppingListId)}/${itemId}`, {
+      method: 'DELETE',
+      headers: bearer(owner.token),
+    });
+    expect(removed.status).toBeLessThan(300);
+
+    const addedAgain = await createJsonRequest<{ item: Item }>(itemsPath(shoppingListId), {
+      method: 'POST',
+      headers: bearer(owner.token),
+      body: JSON.stringify({ customItemId: customItem.id }),
+    });
+    expect(addedAgain.body.item).toMatchObject({ iconKey: 'coffee', sectionKey: 'beverages' });
+  });
+
   it('saves, applies and resets the section order', async () => {
     const { shoppingListId, owner } = await createSoloShoppingList('section-order');
     const initial = await createJsonRequest<OrderView>(orderPath(shoppingListId), {

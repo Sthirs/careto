@@ -22,8 +22,14 @@ export function serializeCustomItem(customItem: ListCustomItem): SerializedCusto
   return { id: customItem.id, name: customItem.name };
 }
 
+/** The list's chosen icon and section for an item (ADR-0029). */
+export type ItemOverrideFields = { iconKey: string | null; sectionKey: string | null };
+
 /** Expects `catalogItem` / `customItem` to be loaded. */
-export function serializeListItem(item: ListItem): SerializedListItem {
+export function serializeListItem(
+  item: ListItem,
+  override: ItemOverrideFields | null = null,
+): SerializedListItem {
   const defaultSectionKey = item.catalogItem?.sectionKey ?? OWN_ITEMS_SECTION_KEY;
   return {
     id: item.id,
@@ -32,8 +38,8 @@ export function serializeListItem(item: ListItem): SerializedListItem {
     lastBoughtAt: item.lastBoughtAt ? item.lastBoughtAt.toISOString() : null,
     catalogItemKey: item.catalogItemKey,
     customItem: item.customItem ? serializeCustomItem(item.customItem) : null,
-    sectionKey: item.sectionOverrideKey ?? defaultSectionKey,
+    sectionKey: override?.sectionKey ?? defaultSectionKey,
     defaultSectionKey,
-    iconKey: item.iconKey ?? null,
+    iconKey: override?.iconKey ?? null,
   };
 }

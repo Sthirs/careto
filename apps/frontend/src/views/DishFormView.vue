@@ -38,8 +38,8 @@ const query = ref('');
 const form = useDishForm(() => shoppingListId.value, () => dishId.value);
 const { name, ingredients, imageUrl, pausedUntil, lastAddedAt, isSaving, canSave } = form;
 const { catalog, loadCatalog } = useItemCatalog();
-const { customItems, loadItems } = useListItems(() => shoppingListId.value);
-const results = useItemSearch(query, catalog, customItems, form.takenKeys);
+const { customItems, overrides, loadItems } = useListItems(() => shoppingListId.value);
+const results = useItemSearch(query, catalog, customItems, form.takenKeys, overrides);
 const pauseSheet = useRoutedOverlay('pause-dish');
 const deleteSheet = useRoutedOverlay('delete-dish');
 

@@ -7,6 +7,7 @@ import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem } from '../../entities/ListItem';
 import { ListItemDish } from '../../entities/ListItemDish';
 import { ListItemEvent } from '../../entities/ListItemEvent';
+import { ListItemOverride } from '../../entities/ListItemOverride';
 import { ListSectionOrder } from '../../entities/ListSectionOrder';
 import {
   createShoppingListRepositories,
@@ -24,6 +25,7 @@ export type ListItemRepositories = ShoppingListRepositories & {
   listItemRepository: Repository<ListItem>;
   listItemDishRepository: Repository<ListItemDish>;
   listItemEventRepository: Repository<ListItemEvent>;
+  itemOverrideRepository: Repository<ListItemOverride>;
   sectionOrderRepository: Repository<ListSectionOrder>;
   /** Runs `work` on the section order table inside one transaction. */
   replaceSectionOrder: (
@@ -43,6 +45,7 @@ export function createListItemRepositories(): ListItemRepositories {
     listItemRepository: AppDataSource.getRepository(ListItem),
     listItemDishRepository: AppDataSource.getRepository(ListItemDish),
     listItemEventRepository: AppDataSource.getRepository(ListItemEvent),
+    itemOverrideRepository: AppDataSource.getRepository(ListItemOverride),
     sectionOrderRepository: ordersOf(AppDataSource),
     replaceSectionOrder: (work) => AppDataSource.transaction((manager) => work(ordersOf(manager))),
   };

@@ -67,6 +67,7 @@ beforeEach(() => {
     listItemRepository: repo(),
     listItemDishRepository: repo(),
     listItemEventRepository: repo(),
+    itemOverrideRepository: repo(),
     sectionOrderRepository: repo(),
     replaceSectionOrder: vi.fn(async (work: (orders: typeof orderTx) => Promise<void>) => work(orderTx)),
   };
@@ -295,9 +296,10 @@ describe('normalizeCustomName', () => {
 
 describe('serializeListItem overrides', () => {
   it('sorts under the override and keeps the default section', () => {
-    const serialized = serializeListItem(
-      row({ iconKey: 'coffee', sectionOverrideKey: 'beverages' }) as never,
-    );
+    const serialized = serializeListItem(row({}) as never, {
+      iconKey: 'coffee',
+      sectionKey: 'beverages',
+    });
     expect(serialized).toMatchObject({
       sectionKey: 'beverages',
       defaultSectionKey: 'milk-cheese',
@@ -314,15 +316,65 @@ describe('serializeListItem overrides', () => {
 });
 
 describe('setListItemOverride', () => {
-  it('sets the icon only', async () => {
-    repos.listItemRepository.findOne.mockResolvedValue(row({ iconKey: null, sectionOverrideKey: null }));
+  it('stores the icon for the item in the list, not on its list row', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    repos.itemOverrideRepository.findOne.mockResolvedValue(null);
     const item = await setListItemOverride(r(), 'list-1', 'item-1', { iconKey: 'coffee' }, 'u1');
+    expect(repos.itemOverrideRepository.findOne).toHaveBeenCalledWith({
+      where: { shoppingListId: 'list-1', catalogItemKey: 'milk' },
+    });
+    expect(repos.itemOverrideRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shoppingListId: 'list-1',
+        catalogItemKey: 'milk',
+        customItemId: null,
+        iconKey: 'coffee',
+        sectionKey: null,
+      }),
+    );
+    expect(repos.listItemRepository.save).not.toHaveBeenCalled();
     expect(item).toMatchObject({ iconKey: 'coffee', sectionKey: 'milk-cheese' });
   });
 
-  it('sets and clears the section', async () => {
-    repos.listItemRepository.findOne.mockResolvedValue(row({ sectionOverrideKey: 'beverages' }));
+  it('keys a custom item override by the custom item', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ catalogItemKey: null, catalogItem: null, customItemId: 'c1', customItem: { id: 'c1', name: 'Kombucha' } }),
+    );
+    repos.itemOverrideRepository.findOne.mockResolvedValue(null);
+    const item = await setListItemOverride(r(), 'list-1', 'item-1', { sectionKey: 'beverages' }, 'u1');
+    expect(repos.itemOverrideRepository.findOne).toHaveBeenCalledWith({
+      where: { shoppingListId: 'list-1', customItemId: 'c1' },
+    });
+    expect(item).toMatchObject({ sectionKey: 'beverages', defaultSectionKey: 'own-items' });
+  });
+
+  it('keeps the other field when setting one', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    repos.itemOverrideRepository.findOne.mockResolvedValue({
+      id: 'o1',
+      shoppingListId: 'list-1',
+      catalogItemKey: 'milk',
+      customItemId: null,
+      iconKey: 'coffee',
+      sectionKey: null,
+    });
+    const item = await setListItemOverride(r(), 'list-1', 'item-1', { sectionKey: 'beverages' }, 'u1');
+    expect(item).toMatchObject({ iconKey: 'coffee', sectionKey: 'beverages' });
+  });
+
+  it('deletes the override once both fields are cleared', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    repos.itemOverrideRepository.findOne.mockResolvedValue({
+      id: 'o1',
+      shoppingListId: 'list-1',
+      catalogItemKey: 'milk',
+      customItemId: null,
+      iconKey: null,
+      sectionKey: 'beverages',
+    });
     const item = await setListItemOverride(r(), 'list-1', 'item-1', { sectionKey: null }, 'u1');
+    expect(repos.itemOverrideRepository.delete).toHaveBeenCalledWith({ id: 'o1' });
+    expect(repos.itemOverrideRepository.save).not.toHaveBeenCalled();
     expect(item.sectionKey).toBe('milk-cheese');
   });
 

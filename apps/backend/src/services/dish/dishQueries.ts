@@ -1,6 +1,7 @@
 import { In, IsNull } from 'typeorm';
 
 import { Dish } from '../../entities/Dish';
+import { loadOverrides } from '../listItem/itemOverrides';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import type { DishRepositories } from './dishRepositories';
 import { serializeDish, type SerializedDish } from './dishSerialization';
@@ -46,7 +47,8 @@ export async function serializeWithStatus(
   dish: Dish,
 ): Promise<SerializedDish> {
   const inList = await getDishIdsInList(repositories, [dish.id]);
-  return serializeDish(dish, inList.has(dish.id));
+  const overrides = await loadOverrides(repositories.itemOverrideRepository, dish.shoppingListId);
+  return serializeDish(dish, inList.has(dish.id), overrides);
 }
 
 export async function listDishes(
@@ -64,7 +66,8 @@ export async function listDishes(
     repositories,
     dishes.map((dish) => dish.id),
   );
-  return dishes.map((dish) => serializeDish(dish, inList.has(dish.id)));
+  const overrides = await loadOverrides(repositories.itemOverrideRepository, shoppingListId);
+  return dishes.map((dish) => serializeDish(dish, inList.has(dish.id), overrides));
 }
 
 export async function getDish(
