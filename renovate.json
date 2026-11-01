@@ -9,7 +9,8 @@
     {
       "description": "Own images are versioned by release-please via Chart.yaml appVersion",
       "matchPackageNames": ["ghcr.io/sthirs/careto/**"],
-      "enabled": false
+      "enabled": false,
+      "minimumReleaseAge": false
     }
   ],
   "vulnerabilityAlerts": {
