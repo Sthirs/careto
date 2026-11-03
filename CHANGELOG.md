@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/Sthirs/careto/compare/v1.3.0...v1.4.0) (2026-11-03)
+
+
+### Features
+
+* **helm:** allow setting container resources ([#35](https://github.com/Sthirs/careto/issues/35)) ([c717991](https://github.com/Sthirs/careto/commit/c717991d1b13c8c06761375d804b0b859c96530b))
+
 ## [1.3.0](https://github.com/Sthirs/careto/compare/v1.2.1...v1.3.0) (2026-11-01)
 
 
