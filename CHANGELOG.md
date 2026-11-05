@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/Sthirs/careto/compare/v1.4.0...v1.4.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **deps:** update minor and patch updates ([#38](https://github.com/Sthirs/careto/issues/38)) ([c76f5c6](https://github.com/Sthirs/careto/commit/c76f5c602908d87bf1a0471bb7887fd612e00db9))
+
 ## [1.4.0](https://github.com/Sthirs/careto/compare/v1.3.0...v1.4.0) (2026-11-03)
 
 
