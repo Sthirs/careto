@@ -27,7 +27,7 @@
     "test:playwright": "bash ./scripts/test-playwright.sh"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
+    "@playwright/test": "1.65.0",
     "concurrently": "10.0.6"
   }
 }

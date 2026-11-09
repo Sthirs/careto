@@ -42,7 +42,7 @@ repos:
           - --ignore-words-list=expres,afterall
 
   - repo: https://github.com/kjanat/actionlint
-    rev: 722799fa4b8cc6734debb97bae24aca9e0dbaf59 # frozen: v1.17
+    rev: 220b76cfa568e00ed8b3c476898f849a722b88e2 # frozen: v1.17.1
     hooks:
       - id: actionlint
 
@@ -81,7 +81,7 @@ repos:
         exclude: CHANGELOG\.md$
 
   - repo: https://github.com/renovatebot/pre-commit-hooks
-    rev: b0f656d0e66ad072bd09f2f34301be11bbc00a94 # frozen: 44.221.0
+    rev: 15b33b30a94971320d33fae3a9a74d75abbcd227 # frozen: 44.224.1
     hooks:
       - id: renovate-config-validator
         args: [--strict]
