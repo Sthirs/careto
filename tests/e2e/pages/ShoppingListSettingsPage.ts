@@ -1,21 +1,29 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 const TOKEN_KEY = 'careto.auth.token';
 
 export class ShoppingListSettingsPage {
   // ShoppingListSettingsPanel.vue — the list-name input carries
   // data-testid="list-name-input"; Save sits in the bottom dock.
-  private nameInput = this.page.getByTestId('list-name-input');
-  private saveButton = this.page.getByRole('button', { name: 'Save' });
-  private memberEmailInput = this.page.getByLabel('Add member');
-  private addButton = this.page.getByRole('button', { name: 'Add', exact: true });
+  private readonly nameInput: Locator;
+  private readonly saveButton: Locator;
+  private readonly memberEmailInput: Locator;
+  private readonly addButton: Locator;
 
   // List image upload locators
-  readonly imageEditButton = this.page.getByTestId('list-image-edit');
-  readonly imageInput = this.page.getByTestId('list-image-input');
-  readonly previewImage = this.page.getByTestId('list-image-preview');
+  readonly imageEditButton: Locator;
+  readonly imageInput: Locator;
+  readonly previewImage: Locator;
 
-  constructor(private page: Page) {}
+  constructor(private page: Page) {
+    this.nameInput = page.getByTestId('list-name-input');
+    this.saveButton = page.getByRole('button', { name: 'Save' });
+    this.memberEmailInput = page.getByLabel('Add member');
+    this.addButton = page.getByRole('button', { name: 'Add', exact: true });
+    this.imageEditButton = page.getByTestId('list-image-edit');
+    this.imageInput = page.getByTestId('list-image-input');
+    this.previewImage = page.getByTestId('list-image-preview');
+  }
 
   async rename(newName: string) {
     await this.nameInput.fill(newName);

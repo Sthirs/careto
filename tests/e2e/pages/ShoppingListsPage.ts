@@ -1,12 +1,17 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 export class ShoppingListsPage {
-  private createShoppingListButton = this.page.getByRole('button', { name: 'New list' });
-  private shoppingListNameInput = this.page.getByRole('textbox', { name: 'List name' });
-  private createButton = this.page.getByRole('button', { name: 'Save', exact: true });
-  private cancelButton = this.page.getByRole('button', { name: 'Cancel' });
+  private readonly createShoppingListButton: Locator;
+  private readonly shoppingListNameInput: Locator;
+  private readonly createButton: Locator;
+  private readonly cancelButton: Locator;
 
-  constructor(private page: Page) {}
+  constructor(private page: Page) {
+    this.createShoppingListButton = page.getByRole('button', { name: 'New list' });
+    this.shoppingListNameInput = page.getByRole('textbox', { name: 'List name' });
+    this.createButton = page.getByRole('button', { name: 'Save', exact: true });
+    this.cancelButton = page.getByRole('button', { name: 'Cancel' });
+  }
 
   async clickCreateShoppingListButton() {
     await this.createShoppingListButton.click();
