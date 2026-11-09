@@ -1,20 +1,29 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 // Endonyms shown by LanguageListbox.vue — never translated.
 const LANGUAGE_NAMES = { en: 'English', it: 'Italiano' } as const;
 
 export class AccountPage {
-  readonly avatar = this.page.getByTestId('account-avatar');
-  readonly nameInput = this.page.locator('#account-name');
-  readonly emailInput = this.page.locator('#account-email');
-  readonly saveButton = this.page.getByTestId('account-save');
+  readonly avatar: Locator;
+  readonly nameInput: Locator;
+  readonly emailInput: Locator;
+  readonly saveButton: Locator;
   // The listbox trigger button; its text is the selected language's endonym.
-  readonly languageButton = this.page.getByTestId('account-language');
-  readonly avatarEditBadge = this.page.getByTestId('account-avatar-edit');
-  readonly avatarInput = this.page.getByTestId('account-avatar-input');
-  readonly versionLine = this.page.getByTestId('account-version');
+  readonly languageButton: Locator;
+  readonly avatarEditBadge: Locator;
+  readonly avatarInput: Locator;
+  readonly versionLine: Locator;
 
-  constructor(private page: Page) {}
+  constructor(private page: Page) {
+    this.avatar = page.getByTestId('account-avatar');
+    this.nameInput = page.locator('#account-name');
+    this.emailInput = page.locator('#account-email');
+    this.saveButton = page.getByTestId('account-save');
+    this.languageButton = page.getByTestId('account-language');
+    this.avatarEditBadge = page.getByTestId('account-avatar-edit');
+    this.avatarInput = page.getByTestId('account-avatar-input');
+    this.versionLine = page.getByTestId('account-version');
+  }
 
   /** Pick the interface language in the listbox; it only persists on Save. */
   async selectLanguage(locale: 'en' | 'it') {
