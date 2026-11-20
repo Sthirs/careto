@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/Sthirs/careto/compare/v1.4.1...v1.4.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **frontend:** use official nginx 1.31.9-alpine image ([#46](https://github.com/Sthirs/careto/issues/46)) ([3f1831f](https://github.com/Sthirs/careto/commit/3f1831f96d84ad577f3a8c32f99011303d75b713))
+
 ## [1.4.1](https://github.com/Sthirs/careto/compare/v1.4.0...v1.4.1) (2026-11-05)
 
 
