@@ -1,4 +1,4 @@
-FROM node:26.13.0-alpine3.23@sha256:44a3247313f9bc069a4ec25d01b66254ed7dc4d0408727d8720dc827f0753423 AS build
+FROM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS build
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -9,7 +9,7 @@ RUN npm ci --workspace @careto/backend --ignore-scripts
 COPY apps ./apps
 RUN npm run build --workspace @careto/backend
 
-FROM node:26.13.0-alpine3.23@sha256:44a3247313f9bc069a4ec25d01b66254ed7dc4d0408727d8720dc827f0753423
+FROM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216
 WORKDIR /app
 
 COPY --chown=1001:1001 package.json package-lock.json* ./
