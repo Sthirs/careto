@@ -27,7 +27,16 @@ export class ShoppingListSettingsPage {
 
   async rename(newName: string) {
     await this.nameInput.fill(newName);
+    // The panel saves asynchronously; wait for the PATCH so a navigation right
+    // after cannot abort it.
+    const saved = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        /\/api\/lists\/[^/]+$/.test(new URL(response.url()).pathname) &&
+        response.ok(),
+    );
     await this.saveButton.click();
+    await saved;
   }
 
   async expectNameValue(value: string) {
