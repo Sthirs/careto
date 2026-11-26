@@ -1,4 +1,4 @@
-FROM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS build
+FROM node:26.13.1-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS build
 WORKDIR /app
 
 ARG APP_VERSION=dev
@@ -15,7 +15,7 @@ RUN npm run build --workspace @careto/frontend \
      -o -name '*.svg' -o -name '*.json' -o -name '*.webmanifest' \) \
      -exec gzip -9 -k -n {} +
 
-FROM nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7
+FROM nginx:1.31.10-alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae
 # Run as non-root on a read-only root fs: drop `user`, move pid + temp paths to /tmp
 RUN sed -i -e '/^user /d' \
            -e 's,^pid .*,pid /tmp/nginx.pid;,' \
