@@ -236,9 +236,24 @@ export function onOutboxEvent(listener: (event: OutboxEvent) => void): () => voi
   return () => listeners.delete(listener);
 }
 
+/**
+ * The page is going away (closed, reloaded, navigated off): a lock callback
+ * may never run now, so ops still waiting for the write lock are stored at
+ * once, appended to the stored copy, else a tap made just before would be
+ * lost. Memory is left as is, in case the page comes back from the
+ * back-forward cache and the pending locked write still runs.
+ */
+const storeUnsavedNow = () => {
+  if (!userId || storageBroken || unsaved.length === 0) return;
+  const stored = readJson<OutboxOp[]>(keyFor(userId)) ?? [];
+  const missing = unsaved.filter((op) => !stored.some((saved) => saved.id === op.id));
+  if (missing.length > 0 && !writeJson(keyFor(userId), [...stored, ...missing])) storageBroken = true;
+};
+
 const wireTriggers = () => {
   if (triggersWired || typeof window === 'undefined') return;
   triggersWired = true;
+  window.addEventListener('pagehide', storeUnsavedNow);
   window.addEventListener('online', () => {
     failures = 0;
     void flush();

@@ -197,6 +197,29 @@ describe('outbox (ADR-0030)', () => {
     }
   });
 
+  it('stores an op still waiting for the write lock when the page goes away', () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    // A lock that is never granted: the page unloads before its callback runs.
+    const locks = { request: () => new Promise(() => {}) };
+    Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
+    try {
+      const other = { id: 'other', listId: 'l1', occurredAt: new Date().toISOString(), kind: 'remove', itemId: 'i7' };
+      localStorage.setItem(KEY, JSON.stringify([other]));
+
+      const mine = enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+      expect(stored()!.map((op) => op.id)).toEqual(['other']);
+
+      window.dispatchEvent(new Event('pagehide'));
+      expect(stored()!.map((op) => op.id)).toEqual(['other', mine.id]);
+      // A second pagehide (back-forward cache round trip) does not duplicate it.
+      window.dispatchEvent(new Event('pagehide'));
+      expect(stored()!.map((op) => op.id)).toEqual(['other', mine.id]);
+    } finally {
+      delete (navigator as { locks?: unknown }).locks;
+      onLine.mockRestore();
+    }
+  });
+
   it('keeps ops it could not store when another tab changes the stored copy', async () => {
     const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
