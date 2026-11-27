@@ -15,6 +15,7 @@ vi.mock('../src/db/data-source', () => ({
 import { createApp } from '../src/app';
 import { CATALOG_SECTIONS } from '../src/services/catalog/catalogData';
 import { AuthService } from '../src/services/authService';
+import { NotFoundError, SupersededChangeError } from '../src/services/domainErrors';
 import { ListItemService } from '../src/services/listItemService';
 
 const JWT_SECRET = 'change-me-in-real-environments';
@@ -131,10 +132,34 @@ describe('list item override and section order routes (service layer mocked)', (
 
   it('GET /section-order → 404 for a non-member', async () => {
     vi.spyOn(ListItemService.prototype, 'getSectionOrder').mockRejectedValue(
-      new Error('List not found or you are not a member.'),
+      new NotFoundError('List not found or you are not a member.'),
     );
     const response = await request(createApp()).get(`/api/lists/${LIST}/section-order`).set(auth());
     expect(response.status).toBe(404);
+  });
+
+  it('PATCH /items/:itemId { status } → 409 when a later change overtook it (ADR-0031)', async () => {
+    vi.spyOn(ListItemService.prototype, 'setListItemStatus').mockRejectedValue(
+      new SupersededChangeError(),
+    );
+    const response = await request(createApp())
+      .patch(`/api/lists/${LIST}/items/${ITEM}`)
+      .set(auth())
+      .send({ status: 'bought' });
+    expect(response.status).toBe(409);
+  });
+
+  it('POST /items → 500, not 400, when something unexpected fails, so the outbox retries', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(ListItemService.prototype, 'addListItem').mockRejectedValue(
+      new Error('Connection terminated unexpectedly'),
+    );
+    const response = await request(createApp())
+      .post(`/api/lists/${LIST}/items`)
+      .set(auth())
+      .send({ catalogItemKey: 'milk' });
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ message: 'Unable to add item.' });
   });
 
   it('PUT /section-order → 200 and passes the order on', async () => {

@@ -58,3 +58,40 @@ test('list items offline: add, buy and remove without a connection, then sync', 
   // The screen still matches the server after the sync.
   await expect.poll(() => detailPage.tileNames(detailPage.toBuyList())).toEqual(['Milk']);
 });
+
+// ADR-0031: a change made offline loses to a later change of the same item
+// by another member, and the list says the older change was skipped.
+test('list items offline: a later change by another member wins over an older offline change', async ({
+  pageForUser,
+}) => {
+  const owner = await registerNamedUser('Anna');
+  const member = await registerNamedUser('Ben');
+  const list = await createShoppingListViaApi(owner, [member], 'e2e-offline-latest');
+  const { item: bread } = await api<{ item: { id: string } }>(owner.token, 'POST', `/lists/${list.id}/items`, {
+    catalogItemKey: 'bread',
+  });
+  const page = await pageForUser(owner.email, owner.password);
+  const detailPage = new ShoppingListDetailPage(page);
+
+  await page.goto(`/lists/${list.id}`);
+  await expect.poll(() => detailPage.tileNames(detailPage.toBuyList())).toEqual(['Bread']);
+
+  // Anna removes the bread while offline...
+  await page.context().setOffline(true);
+  await expect(detailPage.syncStatus()).toContainText("You're offline");
+  await detailPage.swipeRemove('Bread', { offline: true });
+  await expect(page.getByTestId('sync-pending')).toHaveText('1 change waiting to sync');
+
+  // ...and Ben buys it afterwards, online.
+  await api(member.token, 'PATCH', `/lists/${list.id}/items/${bread.id}`, { status: 'bought' });
+
+  await page.context().setOffline(false);
+
+  await expect(page.getByRole('alert')).toHaveText(
+    'Someone changed an item after you, so your older change was skipped.',
+    { timeout: 30_000 },
+  );
+  await expect(detailPage.lastUsedList().getByText('Bread')).toBeVisible();
+  const { items } = await api<{ items: ServerItem[] }>(owner.token, 'GET', `/lists/${list.id}/items`);
+  expect(items.map((item) => `${item.catalogItemKey}:${item.status}`)).toEqual(['bread:bought']);
+});

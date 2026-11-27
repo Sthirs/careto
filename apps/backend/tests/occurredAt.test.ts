@@ -22,6 +22,13 @@ describe('parseOccurredAt (ADR-0030)', () => {
     expect(parseOccurredAt(['2026-11-27T11:00:00Z'], now)).toBe(now);
   });
 
+  it('means now for a date that does not exist, which Date would roll over', () => {
+    const march = new Date('2026-03-02T12:00:00Z');
+    expect(parseOccurredAt('2026-02-30T10:00:00Z', march)).toBe(march);
+    expect(parseOccurredAt('2026-02-29T10:00:00Z', march)).toBe(march);
+    expect(parseOccurredAt('2026-02-28T10:00:00Z', march)).toEqual(new Date('2026-02-28T10:00:00Z'));
+  });
+
   it('never dates a change in the future', () => {
     expect(parseOccurredAt('2026-11-27T12:00:01Z', now)).toBe(now);
   });

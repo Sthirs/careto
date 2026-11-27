@@ -115,6 +115,7 @@ export const en = {
     fromPlanner: 'Added by the automatic planner',
     moreOptionsAria: 'More options for {name}',
     syncRejected: 'Some changes could not be saved, so the list was reloaded.',
+    syncSuperseded: 'Someone changed an item after you, so your older change was skipped.',
     needsConnection: 'This change needs a connection. Try again when you are back online.',
     offline: "You're offline. Changes are saved on this device and will sync when you're back online.",
     unreachable: "Can't reach Careto. Changes are saved on this device and will sync as soon as possible.",

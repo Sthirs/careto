@@ -3,6 +3,7 @@ import { computed, getCurrentScope, onScopeDispose, ref, watch, type ComputedRef
 import { useItemCatalog } from '@/composables/useItemCatalog';
 import { api } from '@/lib/api';
 import { applyPending } from '@/lib/offline/applyPending';
+import { browserOnline } from '@/lib/offline/connectivity';
 import { readListSnapshot, saveListSnapshot } from '@/lib/offline/listSnapshot';
 import { isTransientFailure } from '@/lib/offline/networkErrors';
 import { enqueue, onOutboxEvent, pendingOps, syncState, type OutboxEvent } from '@/lib/offline/outbox';
@@ -108,13 +109,18 @@ export function useListItems(
     }
   };
 
+  // Loads can overlap (outbox events, reconnects); only the latest one counts.
+  let latestLoad = 0;
   const loadItems = async () => {
+    const load = ++latestLoad;
     try {
       const { data } = await api.get<ListItemsResponse>(base());
+      if (load !== latestLoad) return;
       adopt(data);
       fromOfflineCopy.value = false;
       saveSnapshot();
     } catch (error: unknown) {
+      if (load !== latestLoad) return;
       const id = userId();
       const copy = id && isTransientFailure(error) ? readListSnapshot(id, shoppingListId())?.items : null;
       if (!copy) throw error;
@@ -157,10 +163,15 @@ export function useListItems(
     },
     { flush: 'sync' },
   );
+  // Back online while showing the device copy: fetch the current list once.
+  const stopOnline = watch(browserOnline, (online) => {
+    if (online && fromOfflineCopy.value) reloadQuietly();
+  });
   if (getCurrentScope()) {
     onScopeDispose(() => {
       stopListening();
       stopWatching();
+      stopOnline();
     });
   }
 

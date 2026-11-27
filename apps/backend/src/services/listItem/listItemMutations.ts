@@ -2,8 +2,9 @@ import { IsNull, QueryFailedError } from 'typeorm';
 
 import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListItem';
+import { NotFoundError, SupersededChangeError } from '../domainErrors';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
-import { recordItemEvent } from './itemEvents';
+import { isSupersededAt, recordItemEvent } from './itemEvents';
 import type { ListItemRepositories } from './listItemRepositories';
 import { serializeWithOverride, type ItemReference } from './itemOverrides';
 import type { SerializedListItem } from './listItemSerialization';
@@ -30,7 +31,7 @@ export async function findMemberListItem(
     where: { id: itemId, shoppingListId },
     relations: ITEM_RELATIONS,
   });
-  if (!item) throw new Error('Item not found.');
+  if (!item) throw new NotFoundError('Item not found.');
   return item;
 }
 
@@ -87,7 +88,7 @@ export async function resolveReference(
     const exists = await repositories.catalogItemRepository.exists({
       where: { key: input.catalogItemKey },
     });
-    if (!exists) throw new Error('Catalog item not found.');
+    if (!exists) throw new NotFoundError('Catalog item not found.');
     return { catalogItemKey: input.catalogItemKey, customItemId: null };
   }
 
@@ -95,7 +96,7 @@ export async function resolveReference(
     const exists = await repositories.customItemRepository.exists({
       where: { id: input.customItemId, shoppingListId },
     });
-    if (!exists) throw new Error('Custom item not found.');
+    if (!exists) throw new NotFoundError('Custom item not found.');
     return { catalogItemKey: null, customItemId: input.customItemId };
   }
 
@@ -154,7 +155,7 @@ export async function ensureListItem(
     }
   }
 
-  if (!item) throw new Error('Item not found.');
+  if (!item) throw new NotFoundError('Item not found.');
   let changed = created;
   if (!created) {
     const reopened = item.status !== 'to_buy';
@@ -181,6 +182,10 @@ export async function addListItem(
 ): Promise<AddListItemResult> {
   await getShoppingListForMember(repositories, shoppingListId, userId);
   const reference = await resolveReference(repositories, shoppingListId, input, userId);
+  // A tap synced late loses to a later change of the same product (ADR-0031).
+  if (await isSupersededAt(repositories, shoppingListId, reference, at)) {
+    throw new SupersededChangeError();
+  }
   const { item, created } = await ensureListItem(
     repositories,
     shoppingListId,
@@ -202,6 +207,9 @@ export async function setListItemStatus(
 ): Promise<SerializedListItem> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
   if (item.status === status) return serializeWithOverride(repositories, item);
+  if (await isSupersededAt(repositories, shoppingListId, item, now)) {
+    throw new SupersededChangeError();
+  }
 
   const boughtAt = item.lastBoughtAt;
   // `now` may be an offline tap synced later (ADR-0030): an un-buy counts as
@@ -266,8 +274,11 @@ export async function removeListItem(
   at: Date = new Date(),
 ): Promise<void> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
+  if (await isSupersededAt(repositories, shoppingListId, item, at)) {
+    throw new SupersededChangeError();
+  }
   const result = await repositories.listItemRepository.delete({ id: itemId, shoppingListId });
-  if (!result.affected) throw new Error('Item not found.');
+  if (!result.affected) throw new NotFoundError('Item not found.');
   if (item.status === 'to_buy') {
     await recordItemEvent(repositories, item, 'removed', item.source, userId, at);
   }

@@ -63,8 +63,10 @@ const {
   setOverride,
 } = useListItems(() => shoppingListId.value, {
   // A 404 means another member removed the item: the reload says it all.
+  // A 409 means a later change of the item won over this one (ADR-0031).
   onRejected: ({ status }) => {
-    if (status !== 404) actionError.value = t('shoppingListDetail.syncRejected');
+    if (status === 409) actionError.value = t('shoppingListDetail.syncSuperseded');
+    else if (status !== 404) actionError.value = t('shoppingListDetail.syncRejected');
   },
 });
 const pendingCount = computed(() => pendingOps.value.filter((op) => op.listId === shoppingListId.value).length);

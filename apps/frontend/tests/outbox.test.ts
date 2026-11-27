@@ -163,6 +163,59 @@ describe('outbox (ADR-0030)', () => {
     expect(stored()).toHaveLength(1);
   });
 
+  it('stores a new op only under the write lock, so another tab\'s op is never overwritten', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const tails = new Map<string, Promise<unknown>>();
+    const locks = {
+      request: (name: string, run: () => Promise<unknown>) => {
+        const next = (tails.get(name) ?? Promise.resolve()).then(run);
+        tails.set(name, next.catch(() => undefined));
+        return next;
+      },
+    };
+    Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
+    try {
+      // Another tab holds the write lock and stores its op meanwhile.
+      let release = () => {};
+      const held = new Promise<void>((done) => (release = done));
+      void locks.request('careto.outbox.write', () => held);
+      const other = { id: 'other', listId: 'l1', occurredAt: '2026-11-27T10:00:00.000Z', kind: 'remove', itemId: 'i7' };
+      localStorage.setItem(KEY, JSON.stringify([other]));
+
+      const mine = enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+      expect(pendingOps.value.map((op) => op.id)).toContain(mine.id);
+      expect(stored()!.map((op) => op.id)).toEqual(['other']);
+
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(stored()!.map((op) => op.id)).toEqual(['other', mine.id]);
+      await outboxSettled();
+      expect(pendingOps.value.map((op) => op.id)).toEqual(['other', mine.id]);
+    } finally {
+      delete (navigator as { locks?: unknown }).locks;
+      onLine.mockRestore();
+    }
+  });
+
+  it('keeps ops it could not store when another tab changes the stored copy', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    try {
+      const mine = enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+      await outboxSettled();
+
+      window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: '[]' }));
+
+      expect(pendingOps.value.map((op) => op.id)).toEqual([mine.id]);
+      expect(events.map((event) => event.type)).toEqual(['changedElsewhere']);
+    } finally {
+      setItem.mockRestore();
+      onLine.mockRestore();
+    }
+  });
+
   it('keeps each user apart and clears on sign-out', () => {
     enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
     startOutboxSync('u2');

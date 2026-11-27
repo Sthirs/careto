@@ -257,6 +257,42 @@ describe('ShoppingListDetailView items', () => {
     expect(JSON.parse(localStorage.getItem('careto.outbox.u1') ?? '[]')).toHaveLength(2);
   });
 
+  it('says an older change was skipped when a later change of the item won (ADR-0031)', async () => {
+    vi.mocked(api.patch).mockRejectedValue(
+      new AxiosError('conflict', 'ERR_BAD_REQUEST', undefined, undefined, { status: 409 } as never),
+    );
+    const wrapper = await mountView();
+
+    await wrapper.find('button[aria-label="Mark Milk as bought"]').trigger('click');
+    await flushPromises();
+
+    expect(tileNames(wrapper, 'to-buy')).toContain('Milk');
+    expect(wrapper.find('[role="alert"]').text()).toBe(
+      'Someone changed an item after you, so your older change was skipped.',
+    );
+  });
+
+  it('fetches the current list once the browser is back online after opening the device copy', async () => {
+    const network = new AxiosError('Network Error', 'ERR_NETWORK');
+    localStorage.setItem('careto.offline.u1.list.list-1', JSON.stringify({ items: itemsPayload }));
+    const online = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(((url: string) =>
+      url.endsWith('/items') ? Promise.reject(network) : online(url)) as typeof api.get);
+    const { browserOnline } = await import('@/lib/offline/connectivity');
+    browserOnline.value = false;
+
+    const wrapper = await mountView();
+    expect(tileNames(wrapper, 'to-buy')).toContain('Milk');
+
+    // Another member bought the milk meanwhile.
+    itemsPayload = { ...itemsPayload, items: itemsPayload.items.map((item) => item.id === 'i2' ? { ...item, status: 'bought' } : item) };
+    vi.mocked(api.get).mockImplementation(online);
+    browserOnline.value = true;
+    await flushPromises();
+
+    expect(tileNames(wrapper, 'bought')).toContain('Milk');
+  });
+
   it('undoes a change the server refuses and says so', async () => {
     vi.mocked(api.patch).mockRejectedValue(
       new AxiosError('bad', 'ERR_BAD_REQUEST', undefined, undefined, { status: 400 } as never),

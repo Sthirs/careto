@@ -2,14 +2,28 @@ import { Response } from 'express';
 
 import { AuthedRequest, AuthenticatedRequest } from '../../middleware/auth';
 import { getCatalog as loadCatalog } from '../../services/catalogService';
+import { NotFoundError, SupersededChangeError } from '../../services/domainErrors';
 import { parseAddItemBody, parseItemUpdateBody } from './listItemBodies';
 import { occurredAtOf } from './occurredAt';
 import { listItemService } from './listItemServiceInstance';
 
-/** Membership and lookup failures are 404s, like the rest of the list API. */
+/**
+ * Membership and lookup failures are 404s, like the rest of the list API; a
+ * change overtaken by a later one is a 409 (ADR-0031). Anything else is
+ * unexpected, such as the database being down, and is a 500: the offline
+ * outbox retries a 5xx but drops a 4xx (ADR-0030).
+ */
 export const sendError = (response: Response, error: unknown, fallback: string) => {
-  const message = error instanceof Error ? error.message : fallback;
-  response.status(message.includes('not found') ? 404 : 400).json({ message });
+  if (error instanceof NotFoundError) {
+    response.status(404).json({ message: error.message });
+    return;
+  }
+  if (error instanceof SupersededChangeError) {
+    response.status(409).json({ message: error.message });
+    return;
+  }
+  console.error('[api] List item request failed', error);
+  response.status(500).json({ message: fallback });
 };
 
 export const getCatalog = async (

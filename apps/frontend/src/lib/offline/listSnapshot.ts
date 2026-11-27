@@ -21,8 +21,41 @@ const listKey = (userId: string, listId: string) => `${userPrefix(userId)}list.$
 const CATALOG_KEY = 'careto.offline.catalog';
 const USER_KEY = 'careto.offline.user';
 
+/*
+ * A stored copy is only valid JSON, not a checked shape: an old or damaged
+ * copy reads as "no copy", so the caller keeps its network error.
+ */
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isListSnapshot = (value: unknown): value is ListSnapshot => {
+  if (!isObject(value)) return false;
+  const { items, shoppingList } = value;
+  if (shoppingList !== undefined && !(isObject(shoppingList) && Array.isArray(shoppingList.members))) {
+    return false;
+  }
+  return (
+    items === undefined ||
+    (isObject(items) &&
+      Array.isArray(items.items) &&
+      Array.isArray(items.customItems) &&
+      Array.isArray(items.sectionOrder))
+  );
+};
+
+const isCatalog = (value: unknown): value is Catalog =>
+  isObject(value) && Array.isArray(value.sections) && Array.isArray(value.items);
+
+const isAuthUser = (value: unknown): value is AuthUser =>
+  isObject(value) && typeof value.id === 'string';
+
+const readChecked = <T>(key: string, isValid: (value: unknown) => value is T): T | null => {
+  const value = readJson<unknown>(key);
+  return isValid(value) ? value : null;
+};
+
 export const readListSnapshot = (userId: string, listId: string): ListSnapshot | null =>
-  readJson<ListSnapshot>(listKey(userId, listId));
+  readChecked(listKey(userId, listId), isListSnapshot);
 
 const withoutImages = (detail: ShoppingListDetail): ShoppingListDetail => ({
   ...detail,
@@ -42,14 +75,14 @@ export function saveListSnapshot(userId: string, listId: string, patch: ListSnap
 export const clearListSnapshots = (userId: string): void =>
   removeKeysWithPrefix(userPrefix(userId));
 
-export const readCatalogSnapshot = (): Catalog | null => readJson<Catalog>(CATALOG_KEY);
+export const readCatalogSnapshot = (): Catalog | null => readChecked(CATALOG_KEY, isCatalog);
 
 export const saveCatalogSnapshot = (catalog: Catalog): void => {
   writeJson(CATALOG_KEY, catalog);
 };
 
 /** The signed-in user, so the router guard knows who it is on an offline start. */
-export const readUserSnapshot = (): AuthUser | null => readJson<AuthUser>(USER_KEY);
+export const readUserSnapshot = (): AuthUser | null => readChecked(USER_KEY, isAuthUser);
 
 export const saveUserSnapshot = (user: AuthUser): void => {
   writeJson(USER_KEY, { ...user, imageUrl: null });

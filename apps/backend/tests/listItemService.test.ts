@@ -23,6 +23,7 @@ import {
   resetListSectionOrder,
 } from '../src/services/listItem/listItemSectionOrder';
 import { serializeListItem } from '../src/services/listItem/listItemSerialization';
+import { SupersededChangeError } from '../src/services/domainErrors';
 
 const memberQuery = {
   innerJoin: vi.fn().mockReturnThis(),
@@ -564,5 +565,92 @@ describe('item history (ADR-0027)', () => {
     repos.listItemRepository.delete.mockResolvedValue({ affected: 1 });
     await removeListItem(r(), 'list-1', 'item-1', 'u1');
     expect(events()).toEqual([]);
+  });
+});
+
+describe('a late change loses to a later one (ADR-0031)', () => {
+  const tappedAt = new Date('2026-11-20T10:00:00Z');
+  const latestEvent = (at: string) =>
+    repos.listItemEventRepository.findOne.mockResolvedValue({ id: 'e1', at: new Date(at) });
+
+  it('refuses a resent add after another member bought the item, and changes nothing', async () => {
+    repos.catalogItemRepository.exists.mockResolvedValue(true);
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
+    latestEvent('2026-11-20T10:01:00Z');
+
+    await expect(
+      addListItem(r(), 'list-1', { catalogItemKey: 'milk' }, 'u1', tappedAt),
+    ).rejects.toBeInstanceOf(SupersededChangeError);
+    expect(repos.listItemRepository.save).not.toHaveBeenCalled();
+    expect(repos.listItemEventRepository.insert).not.toHaveBeenCalled();
+    expect(repos.listItemEventRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { shoppingListId: 'list-1', catalogItemKey: 'milk' } }),
+    );
+  });
+
+  it('refuses a resent buy after another member put the item back', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'to_buy' }));
+    latestEvent('2026-11-20T10:01:00Z');
+
+    await expect(
+      setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1', tappedAt),
+    ).rejects.toBeInstanceOf(SupersededChangeError);
+    expect(repos.listItemRepository.update).not.toHaveBeenCalled();
+    expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
+    expect(repos.listItemEventRepository.insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses a removal tapped before a later change of the item', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
+    latestEvent('2026-11-20T10:01:00Z');
+
+    await expect(removeListItem(r(), 'list-1', 'item-1', 'u1', tappedAt)).rejects.toBeInstanceOf(
+      SupersededChangeError,
+    );
+    expect(repos.listItemRepository.delete).not.toHaveBeenCalled();
+  });
+
+  it('answers a resend of a buy that already landed with the item, as before', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'bought' }));
+    latestEvent('2026-11-20T10:00:00Z');
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1', tappedAt);
+
+    expect(item.status).toBe('bought');
+    expect(repos.listItemEventRepository.insert).not.toHaveBeenCalled();
+  });
+
+  it('applies a change whose own earlier event has the same time', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'to_buy' }));
+    latestEvent('2026-11-20T10:00:00Z');
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1', tappedAt);
+
+    expect(item.status).toBe('bought');
+  });
+
+  it('applies the next tap of a member after their own earlier tap', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(row({ status: 'to_buy' }));
+    latestEvent('2026-11-20T09:59:00Z');
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1', tappedAt);
+
+    expect(item.status).toBe('bought');
+    expect(repos.listItemEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'bought', at: tappedAt }),
+    );
+  });
+
+  it('checks a custom item by its custom item id', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ catalogItemKey: null, catalogItem: null, customItemId: 'c1', customItem: { id: 'c1', name: 'Tofu' } }),
+    );
+    repos.listItemRepository.delete.mockResolvedValue({ affected: 1 });
+
+    await removeListItem(r(), 'list-1', 'item-1', 'u1', tappedAt);
+
+    expect(repos.listItemEventRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { shoppingListId: 'list-1', customItemId: 'c1' } }),
+    );
   });
 });

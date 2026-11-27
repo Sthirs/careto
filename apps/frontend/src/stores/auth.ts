@@ -171,6 +171,8 @@ export const useAuthStore = defineStore('auth', {
           changes,
         );
         this.user = data.user;
+        // An offline start must not bring back the old name or language.
+        saveUserSnapshot(data.user);
         if (changes.language) setAppLocale(changes.language);
         return data.user;
       } finally {
