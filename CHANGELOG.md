@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/Sthirs/careto/compare/v1.4.3...v1.5.0) (2026-11-27)
+
+
+### Features
+
+* **list:** keep list edits working offline and sync them when back online ([#51](https://github.com/Sthirs/careto/issues/51)) ([6910ec6](https://github.com/Sthirs/careto/commit/6910ec64f974634bd3431269580f085896aabb13))
+
 ## [1.4.3](https://github.com/Sthirs/careto/compare/v1.4.2...v1.4.3) (2026-11-27)
 
 
