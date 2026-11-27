@@ -1,3 +1,5 @@
+import { QueryFailedError } from 'typeorm';
+
 /**
  * Errors a service throws on purpose, so a handler can answer them with the
  * right status. Anything else is unexpected and answers 500: the offline
@@ -23,3 +25,9 @@ export class SupersededChangeError extends Error {
     this.name = 'SupersededChangeError';
   }
 }
+
+/** The Postgres error code (SQLSTATE) of a failed query, if it is one. */
+export const postgresCodeOf = (error: unknown): string | undefined =>
+  error instanceof QueryFailedError
+    ? (error.driverError as { code?: string } | undefined)?.code
+    : undefined;

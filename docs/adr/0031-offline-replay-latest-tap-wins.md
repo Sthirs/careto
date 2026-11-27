@@ -4,9 +4,10 @@
 - **Date:** 2026-11-27
 - **Deciders:** Sthirs
 
-This ADR replaces only the **"Replay is safe at least once"** point of
-[ADR-0030](0030-offline-list-edits-outbox.md). The rest of ADR-0030 stays as
-it is.
+This ADR replaces two points of
+[ADR-0030](0030-offline-list-edits-outbox.md): **"Replay is safe at least
+once"**, and the unbounded retry of a change that gets no answer, a 5xx or a
+429. The rest of ADR-0030 stays as it is.
 
 ## Context
 
@@ -35,6 +36,13 @@ A third, related case is a genuine offline tap that reaches the server after
 another member's later change. Anna, offline, removes the milk at 10:00; Ben,
 online, buys it at 10:01; Anna syncs at 10:10. Her removal is older than Ben's
 buy, so it should not undo it either.
+
+A fourth case is a change that can never land. ADR-0030 retries a change with
+no answer, a 5xx or a 429 forever, in order. A change the server keeps failing
+on, for example because a row it refers to was deleted meanwhile, then blocks
+every later change of the member, on every list. A phone offline for a week
+would also replay week-old taps, although the offline mode is meant for
+outages of minutes or hours (a shop with a weak connection).
 
 The item event log ([ADR-0027](0027-recurring-products-and-auto-fill.md)) already
 holds, per list and product, every add, buy, un-buy and removal with its time,
@@ -66,6 +74,25 @@ overtaken: **the latest tap wins**.
   **500**, not 400, on the list-item endpoints. Only known domain errors are
   4xx (not found → 404, overtaken → 409). The outbox retries a 5xx and drops a
   4xx, so an outage must never look like a refusal.
+- A database error that fails the same way on every retry is a 4xx, not a
+  500: a foreign-key violation (a row the change refers to is gone) answers
+  404, and invalid input (`22P02`, `23502`, `23514`, `22001`) answers 400.
+
+### Retry limits
+
+- A change still waiting **one hour** after its tap, measured on the phone's
+  own clock, **expires**: the outbox drops it unsent, with the later changes
+  of an item whose add expired, whether the phone is online or not. The list
+  reloads and says "Changes made offline more than an hour ago were
+  discarded, so the list was reloaded."
+- A change that gets **10 answered server errors** (5xx or 429) in a row is
+  dropped like a refusal, so one change the server keeps failing on never
+  blocks the others for long. A request with no answer at all (offline, a
+  timeout) counts only against the one-hour limit. The count is kept in
+  memory, so a reload starts it over.
+- The server keeps the 7-day window of ADR-0030 for `X-Occurred-At`; with the
+  one-hour limit, a header older than that only comes from a wrong phone
+  clock, for which "now" is the right answer.
 
 ## Alternatives considered
 
@@ -93,7 +120,8 @@ overtaken: **the latest tap wins**.
   log and its indexes), [ADR-0024](0024-dishes-and-in-the-list-membership.md)
   (dish needs closed by a buy).
 - Review of the ADR-0030 change (pull request #51), which found the two
-  replay cases.
+  replay cases, and a later review of this branch, which found the blocked
+  queue and the week-old replay.
 - "Last writer wins" conflict resolution by timestamp, as used by offline-first
   sync systems (for example CouchDB/PouchDB revision winners and CRDT LWW
   registers), and HTTP 409 Conflict (RFC 9110 §15.5.10) for a request that
@@ -106,6 +134,8 @@ overtaken: **the latest tap wins**.
   member is told when an old offline change was skipped.
 - Positive: a database outage during a replay is retried instead of dropping
   the member's queued changes.
+- Positive: one failing change can no longer block the outbox for good, and
+  stale taps from a long offline period never reach the server.
 - Negative / trade-offs:
   - The rule trusts the phone's clock. A phone whose clock is behind dates
     its taps early, so a change another member made in that gap wins over it.
@@ -116,6 +146,10 @@ overtaken: **the latest tap wins**.
   - When an add made offline is refused, the later offline changes of that
     item are dropped with it.
   - One more indexed read per list change.
+  - A member offline for more than an hour loses the changes made at the
+    start of the outage; the list says so and shows the server state.
+  - A database outage longer than about four minutes of retries (10 answered
+    server errors) drops the change at the head of the queue as refused.
 - Follow-ups: if clock skew proves a problem, a follow-up ADR on sending the
   age of the change (measured on the phone's own clock) instead of an absolute
   time, or on adding an operation id.

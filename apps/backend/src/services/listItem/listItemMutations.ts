@@ -1,8 +1,8 @@
-import { IsNull, QueryFailedError } from 'typeorm';
+import { IsNull } from 'typeorm';
 
 import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListItem';
-import { NotFoundError, SupersededChangeError } from '../domainErrors';
+import { NotFoundError, postgresCodeOf, SupersededChangeError } from '../domainErrors';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
 import { isSupersededAt, recordItemEvent } from './itemEvents';
 import type { ListItemRepositories } from './listItemRepositories';
@@ -39,9 +39,7 @@ export async function findMemberListItem(
 export const UNBUY_GRACE_MS = 5 * 60_000;
 
 /** Postgres `unique_violation`: a concurrent request inserted the same row. */
-export const isUniqueViolation = (error: unknown): boolean =>
-  error instanceof QueryFailedError &&
-  (error.driverError as { code?: string } | undefined)?.code === '23505';
+export const isUniqueViolation = (error: unknown): boolean => postgresCodeOf(error) === '23505';
 
 export const normalizeCustomName = (name: string): string =>
   name.trim().replace(/\s+/g, ' ');

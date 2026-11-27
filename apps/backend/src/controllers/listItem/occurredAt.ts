@@ -8,12 +8,6 @@ export const OCCURRED_AT_MAX_AGE_MS = 7 * 24 * 60 * 60_000;
 
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
 
-/**
- * When the change happened: the `X-Occurred-At` ISO time an offline client
- * sends with a change it syncs later, or `now`. A missing, malformed, future
- * or more than seven days old value means `now`, so a wrong client clock can
- * never date a change ahead of the server or far into the past.
- */
 /** `Date` rolls `2026-02-30` over to March 2; such a date is no real tap. */
 const isRealCalendarDate = (header: string): boolean => {
   const [year, month, day] = header.slice(0, 10).split('-').map(Number);
@@ -23,6 +17,12 @@ const isRealCalendarDate = (header: string): boolean => {
   );
 };
 
+/**
+ * When the change happened: the `X-Occurred-At` ISO time an offline client
+ * sends with a change it syncs later, or `now`. A missing, malformed, future
+ * or more than seven days old value means `now`, so a wrong client clock can
+ * never date a change ahead of the server or far into the past.
+ */
 export function parseOccurredAt(header: unknown, now: Date = new Date()): Date {
   if (typeof header !== 'string' || !ISO_DATE_TIME.test(header)) return now;
   if (!isRealCalendarDate(header)) return now;

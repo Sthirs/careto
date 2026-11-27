@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { watch } from 'vue';
 
 vi.mock('@/lib/api', () => ({
   api: { post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -19,6 +20,7 @@ import {
   syncState,
   type OutboxEvent,
 } from '@/lib/offline/outbox';
+import { MAX_SERVER_ERRORS, OUTBOX_MAX_AGE_MS } from '@/lib/offline/outboxLimits';
 import type { OutboxOp } from '@/lib/offline/outboxOps';
 import type { ListItem } from '@/types/listItem';
 
@@ -108,10 +110,8 @@ describe('outbox (ADR-0030)', () => {
   });
 
   it('survives a reload: the saved ops are picked up and sent', async () => {
-    localStorage.setItem(
-      KEY,
-      JSON.stringify([{ id: 'x', listId: 'l1', occurredAt: '2026-11-27T10:00:00.000Z', kind: 'remove', itemId: 'i1' }]),
-    );
+    const occurredAt = new Date(Date.now() - 30 * 60_000).toISOString();
+    localStorage.setItem(KEY, JSON.stringify([{ id: 'x', listId: 'l1', occurredAt, kind: 'remove', itemId: 'i1' }]));
     vi.mocked(api.delete).mockResolvedValue({ data: {} });
     resetOutbox();
 
@@ -119,7 +119,7 @@ describe('outbox (ADR-0030)', () => {
     await outboxSettled();
 
     expect(api.delete).toHaveBeenCalledWith('/lists/l1/items/i1', {
-      headers: { 'X-Occurred-At': '2026-11-27T10:00:00.000Z' },
+      headers: { 'X-Occurred-At': occurredAt },
       timeout: 15_000,
     });
   });
@@ -179,7 +179,7 @@ describe('outbox (ADR-0030)', () => {
       let release = () => {};
       const held = new Promise<void>((done) => (release = done));
       void locks.request('careto.outbox.write', () => held);
-      const other = { id: 'other', listId: 'l1', occurredAt: '2026-11-27T10:00:00.000Z', kind: 'remove', itemId: 'i7' };
+      const other = { id: 'other', listId: 'l1', occurredAt: new Date().toISOString(), kind: 'remove', itemId: 'i7' };
       localStorage.setItem(KEY, JSON.stringify([other]));
 
       const mine = enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
@@ -227,5 +227,120 @@ describe('outbox (ADR-0030)', () => {
     clearOutbox('u1');
     expect(pendingOps.value).toEqual([]);
     expect(localStorage.getItem(KEY)).toBeNull();
+  });
+});
+
+describe('outbox retry limits (ADR-0031)', () => {
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
+  it('drops ops waiting over an hour, with the later ops of an expired add, even offline', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const old = ago(OUTBOX_MAX_AGE_MS + 60_000);
+    localStorage.setItem(
+      KEY,
+      JSON.stringify([
+        { id: 'a', listId: 'l1', occurredAt: old, kind: 'add', tempItemId: 'local:a', input: { catalogItemKey: 'milk' } },
+        { id: 'b', listId: 'l1', occurredAt: ago(10 * 60_000), kind: 'status', itemId: 'local:a', status: 'bought' },
+        { id: 'c', listId: 'l1', occurredAt: ago(60_000), kind: 'remove', itemId: 'i2' },
+      ]),
+    );
+    resetOutbox();
+    onOutboxEvent((event) => events.push(event));
+    try {
+      startOutboxSync('u1');
+      await outboxSettled();
+
+      expect(api.post).not.toHaveBeenCalled();
+      expect(events).toEqual([{ type: 'expired', ops: [expect.objectContaining({ id: 'a' }), expect.objectContaining({ id: 'b' })] }]);
+      expect(pendingOps.value.map((op) => op.id)).toEqual(['c']);
+      expect(stored()!.map((op) => op.id)).toEqual(['c']);
+      expect(syncState.value).toBe('waiting');
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('expires an op that kept failing while waiting', async () => {
+    vi.mocked(api.delete).mockRejectedValue(networkError());
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    await outboxSettled();
+
+    await vi.advanceTimersByTimeAsync(OUTBOX_MAX_AGE_MS + 60_000);
+    await outboxSettled();
+
+    expect(pendingOps.value).toEqual([]);
+    expect(events.map((event) => event.type)).toEqual(['expired']);
+  });
+
+  it('drops an op the server keeps failing on, but never counts a request with no answer', async () => {
+    vi.mocked(api.delete).mockRejectedValue(networkError());
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    await outboxSettled();
+    for (let attempt = 0; attempt < MAX_SERVER_ERRORS + 2; attempt += 1) {
+      await vi.advanceTimersByTimeAsync(30_000);
+    }
+    expect(pendingOps.value).toHaveLength(1);
+    expect(events).toEqual([]);
+
+    vi.mocked(api.delete).mockClear().mockRejectedValue(httpError(500));
+    for (let attempt = 0; attempt < MAX_SERVER_ERRORS; attempt += 1) {
+      await vi.advanceTimersByTimeAsync(30_000);
+    }
+    await outboxSettled();
+
+    expect(api.delete).toHaveBeenCalledTimes(MAX_SERVER_ERRORS);
+    expect(pendingOps.value).toEqual([]);
+    expect(events).toEqual([expect.objectContaining({ type: 'rejected', status: 500 })]);
+  });
+
+  it('shows the answer and the trimmed queue in the same step', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { item: serverItem('i1') } });
+    // What a render sees once the op leaves the queue: the answer must be there.
+    const answeredWhenEmptied: boolean[] = [];
+    const stop = watch(
+      () => pendingOps.value.length,
+      (length) => {
+        if (length === 0) answeredWhenEmptied.push(events.some((event) => event.type === 'synced'));
+      },
+    );
+
+    enqueue({ kind: 'status', listId: 'l1', itemId: 'i1', status: 'bought' });
+    await outboxSettled();
+    await vi.advanceTimersByTimeAsync(0);
+    stop();
+
+    expect(answeredWhenEmptied).toEqual([true]);
+  });
+
+  it('tells which ops another tab took out of the queue', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      const sent = enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+      const left = enqueue({ kind: 'remove', listId: 'l1', itemId: 'i2' });
+      await outboxSettled();
+      await vi.advanceTimersByTimeAsync(0);
+
+      localStorage.setItem(KEY, JSON.stringify([left]));
+      window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: JSON.stringify([left]) }));
+
+      expect(events).toEqual([{ type: 'changedElsewhere', removed: [sent] }]);
+      expect(pendingOps.value.map((op) => op.id)).toEqual([left.id]);
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('goes back to idle when the session ends between two ops', async () => {
+    vi.mocked(api.delete).mockImplementation(async () => {
+      localStorage.removeItem('careto.auth.token');
+      return { data: {} };
+    });
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i2' });
+    await outboxSettled();
+
+    expect(api.delete).toHaveBeenCalledTimes(1);
+    expect(pendingOps.value).toHaveLength(1);
+    expect(syncState.value).toBe('idle');
   });
 });

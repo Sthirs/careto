@@ -118,4 +118,24 @@ describe('applyPending (ADR-0030)', () => {
     const view = applyPending(items, [op({ kind: 'status', itemId: 'gone', status: 'bought' })], ctx());
     expect(view.items).toBe(items);
   });
+
+  it('changes nothing when the server items already hold the result of each op', () => {
+    // The answer lands while its op is still queued (outbox settle).
+    const custom = { id: 'c1', name: 'Tofu' };
+    const synced = [
+      item({ id: 'i1', status: 'bought', lastBoughtAt: '2026-11-27T10:00:00.000Z' }),
+      item({ id: 'i2', catalogItemKey: null, customItem: custom, sectionKey: 'own-items', defaultSectionKey: 'own-items' }),
+    ];
+    const view = applyPending(
+      synced,
+      [
+        op({ kind: 'status', itemId: 'i1', status: 'bought' }),
+        op({ kind: 'add', tempItemId: 'local:t', input: { customName: ' tofu ' } }),
+        op({ kind: 'remove', itemId: 'gone' }),
+      ],
+      ctx({ customItems: [custom] }),
+    );
+    expect(view.items).toEqual(synced);
+    expect(view.customItems).toEqual([custom]);
+  });
 });

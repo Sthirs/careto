@@ -235,7 +235,7 @@ describe('ShoppingListDetailView items', () => {
     localStorage.setItem(
       'careto.outbox.u1',
       JSON.stringify([
-        { id: 'o1', listId: 'list-1', occurredAt: '2026-11-27T10:00:00.000Z', kind: 'status', itemId: 'i2', status: 'bought' },
+        { id: 'o1', listId: 'list-1', occurredAt: new Date().toISOString(), kind: 'status', itemId: 'i2', status: 'bought' },
       ]),
     );
     vi.mocked(api.get).mockRejectedValue(network);
@@ -269,6 +269,38 @@ describe('ShoppingListDetailView items', () => {
     expect(tileNames(wrapper, 'to-buy')).toContain('Milk');
     expect(wrapper.find('[role="alert"]').text()).toBe(
       'Someone changed an item after you, so your older change was skipped.',
+    );
+  });
+
+  it('says so when another member removed the item before the change reached it', async () => {
+    vi.mocked(api.patch).mockRejectedValue(
+      new AxiosError('gone', 'ERR_BAD_REQUEST', undefined, undefined, { status: 404 } as never),
+    );
+    const wrapper = await mountView();
+
+    await wrapper.find('button[aria-label="Mark Milk as bought"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[role="alert"]').text()).toBe(
+      'Someone removed an item before your change reached it, so your change was skipped.',
+    );
+  });
+
+  it('reloads and says so when changes waited more than an hour to sync (ADR-0031)', async () => {
+    localStorage.setItem(
+      'careto.outbox.u1',
+      JSON.stringify([
+        { id: 'o1', listId: 'list-1', occurredAt: new Date(Date.now() - 2 * 60 * 60_000).toISOString(), kind: 'status', itemId: 'i2', status: 'bought' },
+      ]),
+    );
+    const wrapper = await mountView();
+    startOutboxSync('u1');
+    await flushPromises();
+
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(tileNames(wrapper, 'to-buy')).toContain('Milk');
+    expect(wrapper.find('[role="alert"]').text()).toBe(
+      'Changes made offline more than an hour ago were discarded, so the list was reloaded.',
     );
   });
 

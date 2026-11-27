@@ -4,6 +4,7 @@ import { getAccessToken } from '@/lib/authToken';
 import type { ListItem } from '@/types/listItem';
 
 import { isTransientFailure, statusOf } from './networkErrors';
+import { countServerError, forgetServerErrors, isExpired } from './outboxLimits';
 import {
   afterDropped,
   afterSent,
@@ -23,14 +24,21 @@ export type { NewOutboxOp, OutboxOp } from './outboxOps';
  * removal goes through it, online or not: it is saved per user so it outlives
  * a reload, and sent one op at a time, in order. A transient failure keeps the
  * op and retries with backoff; a refusal drops it and tells the listeners.
+ * Retries are bounded (ADR-0031): an op waiting over an hour expires, and one
+ * the server keeps failing is dropped as refused.
  */
 export type SyncState = 'idle' | 'syncing' | 'waiting';
 
 export type OutboxEvent =
   | { type: 'synced'; op: OutboxOp; item: ListItem | null }
   | { type: 'rejected'; op: OutboxOp; status: number | undefined }
-  /** Another tab changed the outbox; the view should reload from the server. */
-  | { type: 'changedElsewhere' };
+  /** Ops that waited too long to sync, dropped unsent; the view should reload. */
+  | { type: 'expired'; ops: OutboxOp[] }
+  /**
+   * Another tab changed the outbox; the view should reload from the server.
+   * `removed` are the ops that left the queue there (most likely sent).
+   */
+  | { type: 'changedElsewhere'; removed: OutboxOp[] };
 
 export const RETRY_BASE_MS = 2_000;
 export const RETRY_MAX_MS = 30_000;
@@ -113,9 +121,28 @@ const update = (change: (ops: OutboxOp[]) => OutboxOp[]): Promise<void> => {
   });
 };
 
-const settle = async (change: (ops: OutboxOp[]) => OutboxOp[], event: OutboxEvent) => {
-  await update(change);
+/**
+ * Applies the outcome of an op: the trimmed queue and the event land in the
+ * same synchronous step, so the view never renders the item without the op
+ * and without the server's answer. The stored copy follows under the lock.
+ */
+const settle = (change: (ops: OutboxOp[]) => OutboxOp[], event: OutboxEvent): Promise<void> => {
+  pendingOps.value = change(pendingOps.value);
   emit(event);
+  return update(change);
+};
+
+/** Drops the ops that waited too long, with the later ops of an expired add. */
+const dropExpired = async () => {
+  if (!pendingOps.value.some((op) => isExpired(op))) return;
+  let dropped: OutboxOp[] = [];
+  await update((ops) => {
+    const rest = ops.filter((op) => isExpired(op)).reduce(afterDropped, ops);
+    dropped = ops.filter((op) => !rest.includes(op));
+    return rest;
+  });
+  dropped.forEach((op) => forgetServerErrors(op.id));
+  if (dropped.length > 0) emit({ type: 'expired', ops: dropped });
 };
 
 async function drain(): Promise<void> {
@@ -123,7 +150,12 @@ async function drain(): Promise<void> {
   adopt();
   while (pendingOps.value.length > 0) {
     // Signed out: keep everything until the same user signs in again.
-    if (!getAccessToken()) return;
+    if (!getAccessToken()) {
+      syncState.value = 'idle';
+      return;
+    }
+    await dropExpired();
+    if (pendingOps.value.length === 0) break;
     if (browserIsOffline()) return waitAndRetry();
 
     const op = pendingOps.value[0];
@@ -138,18 +170,24 @@ async function drain(): Promise<void> {
     try {
       const item = await sendOp(op);
       failures = 0;
+      forgetServerErrors(op.id);
       await settle((ops) => afterSent(ops, op, item), { type: 'synced', op, item });
     } catch (error: unknown) {
       const status = statusOf(error);
+      // A 401 here means the refresh could not reach the server either.
+      const retryable = isTransientFailure(error) || status === 401;
+      // A server error answered too often: the op fails the same way each time.
+      const givenUp = retryable && status !== undefined && status !== 401 && countServerError(op);
       if (op.kind === 'remove' && status === 404) {
         // Already gone, maybe removed by this very op before its answer was lost.
         await settle((ops) => afterSent(ops, op, null), { type: 'synced', op, item: null });
-      } else if (isTransientFailure(error) || status === 401) {
-        // A 401 here means the refresh could not reach the server either.
+      } else if (retryable && !givenUp) {
         adopt();
         return waitAndRetry();
       } else {
-        // Refused, or overtaken by a later change of the item (409, ADR-0031).
+        // Refused, overtaken by a later change of the item (409), or failing
+        // on the server again and again (ADR-0031).
+        forgetServerErrors(op.id);
         await settle((ops) => afterDropped(ops, op), { type: 'rejected', op, status });
       }
     }
@@ -210,6 +248,7 @@ const wireTriggers = () => {
   });
   window.addEventListener('storage', (event) => {
     if (!userId || event.key !== keyFor(userId)) return;
+    const before = pendingOps.value;
     // After a failed write, memory holds ops the stored copy lacks: keep them.
     if (!storageBroken) {
       if (event.newValue === null) {
@@ -219,7 +258,8 @@ const wireTriggers = () => {
         adopt();
       }
     }
-    emit({ type: 'changedElsewhere' });
+    const removed = before.filter((op) => !pendingOps.value.some((left) => left.id === op.id));
+    emit({ type: 'changedElsewhere', removed });
   });
 };
 
@@ -229,6 +269,7 @@ export function startOutboxSync(nextUserId: string | null): void {
   if (nextUserId !== userId) {
     clearRetry();
     failures = 0;
+    forgetServerErrors();
     storageBroken = false;
     unsaved = [];
     userId = nextUserId;
@@ -251,6 +292,7 @@ export function clearOutbox(forUserId: string): void {
 /** Test seam: forget everything, including the signed-in user. */
 export function resetOutbox(): void {
   clearRetry();
+  forgetServerErrors();
   listeners.clear();
   userId = null;
   unsaved = [];

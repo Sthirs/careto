@@ -1,12 +1,20 @@
 import { computed, getCurrentScope, onScopeDispose, ref, watch, type ComputedRef, type Ref } from 'vue';
 
+import { createOverrideUpdate } from '@/composables/listItemOverrideUpdate';
 import { useItemCatalog } from '@/composables/useItemCatalog';
 import { api } from '@/lib/api';
 import { applyPending } from '@/lib/offline/applyPending';
 import { browserOnline } from '@/lib/offline/connectivity';
 import { readListSnapshot, saveListSnapshot } from '@/lib/offline/listSnapshot';
 import { isTransientFailure } from '@/lib/offline/networkErrors';
-import { enqueue, onOutboxEvent, pendingOps, syncState, type OutboxEvent } from '@/lib/offline/outbox';
+import {
+  enqueue,
+  onOutboxEvent,
+  pendingOps,
+  syncState,
+  type OutboxEvent,
+  type OutboxOp,
+} from '@/lib/offline/outbox';
 import { isTempId, newTempId } from '@/lib/offline/outboxOps';
 import { useAuthStore } from '@/stores/auth';
 import type {
@@ -35,12 +43,7 @@ export type UseListItemsReturn = {
   setOverride: (item: ListItem, override: ListItemOverride) => Promise<void>;
 };
 
-/** Thrown when a change needs the server and the item is not on it yet. */
-export class NeedsConnectionError extends Error {
-  constructor() {
-    super('This change needs a connection.');
-  }
-}
+export { NeedsConnectionError } from '@/composables/listItemOverrideUpdate';
 
 /**
  * The items of one list. Adds, status changes and removals go through the
@@ -50,13 +53,19 @@ export class NeedsConnectionError extends Error {
  */
 export function useListItems(
   shoppingListId: () => string,
-  hooks: { onRejected?: (event: Extract<OutboxEvent, { type: 'rejected' }>) => void } = {},
+  hooks: {
+    onRejected?: (event: Extract<OutboxEvent, { type: 'rejected' }>) => void;
+    /** Changes of this list waited too long to sync and were dropped (ADR-0031). */
+    onExpired?: () => void;
+  } = {},
 ): UseListItemsReturn {
   const serverItems = ref<ListItem[]>([]);
   const serverCustomItems = ref<CustomItem[]>([]);
   const sectionOrder = ref<string[]>([]);
   const overrides = ref<SavedItemOverride[]>([]);
   const fromOfflineCopy = ref(false);
+  // Ops another tab just sent: still shown until a reload has their result.
+  const heldOps = ref<OutboxOp[]>([]);
   const { catalog } = useItemCatalog();
   const authStore = useAuthStore();
   const base = () => `/lists/${shoppingListId()}/items`;
@@ -68,7 +77,7 @@ export function useListItems(
   const view = computed(() =>
     applyPending(
       serverItems.value,
-      pendingOps.value.filter((op) => op.listId === shoppingListId()),
+      [...heldOps.value, ...pendingOps.value].filter((op) => op.listId === shoppingListId()),
       {
         sectionOf: (key) => sectionOf.value.get(key),
         overrides: overrides.value,
@@ -109,43 +118,81 @@ export function useListItems(
     }
   };
 
+  type SyncedEvent = Extract<OutboxEvent, { type: 'synced' }>;
+  const applySynced = ({ op, item }: SyncedEvent) => {
+    if (op.kind === 'remove') serverItems.value = serverItems.value.filter((existing) => existing.id !== op.itemId);
+    else if (item) upsert(item);
+  };
+
   // Loads can overlap (outbox events, reconnects); only the latest one counts.
   let latestLoad = 0;
+  let loadsInFlight = 0;
+  // Answers that landed while a load was in flight: its data may predate them.
+  let syncedDuringLoad: SyncedEvent[] = [];
+  // The first load that releases `heldOps` (one started after they were held).
+  let heldUntilLoad = 0;
+
+  /** Adopts what the latest load returned, without losing a change that synced meanwhile. */
+  const adoptLoaded = (load: number, data: ListItemsResponse) => {
+    adopt(data);
+    const missed = syncedDuringLoad;
+    syncedDuringLoad = [];
+    missed.forEach(applySynced);
+    if (load >= heldUntilLoad) heldOps.value = [];
+    // A change synced while this load was in flight: fetch the final state.
+    if (missed.length > 0) reloadQuietly();
+  };
+
   const loadItems = async () => {
     const load = ++latestLoad;
+    loadsInFlight += 1;
     try {
       const { data } = await api.get<ListItemsResponse>(base());
       if (load !== latestLoad) return;
-      adopt(data);
+      adoptLoaded(load, data);
       fromOfflineCopy.value = false;
       saveSnapshot();
     } catch (error: unknown) {
       if (load !== latestLoad) return;
       const id = userId();
       const copy = id && isTransientFailure(error) ? readListSnapshot(id, shoppingListId())?.items : null;
-      if (!copy) throw error;
-      adopt(copy);
+      if (!copy) {
+        if (load >= heldUntilLoad) heldOps.value = [];
+        throw error;
+      }
+      adoptLoaded(load, copy);
       fromOfflineCopy.value = true;
+    } finally {
+      loadsInFlight -= 1;
     }
   };
 
-  const reloadQuietly = () => {
+  function reloadQuietly() {
     loadItems().catch(() => undefined);
-  };
+  }
 
+  const ofThisList = (op: OutboxOp) => op.listId === shoppingListId();
   const stopListening = onOutboxEvent((event) => {
-    if (event.type === 'changedElsewhere') return reloadQuietly();
-    if (event.op.listId !== shoppingListId()) return;
+    if (event.type === 'changedElsewhere') {
+      const sent = event.removed.filter(ofThisList);
+      if (sent.length > 0) {
+        heldOps.value = [...heldOps.value, ...sent];
+        heldUntilLoad = latestLoad + 1;
+      }
+      return reloadQuietly();
+    }
+    if (event.type === 'expired') {
+      if (!event.ops.some(ofThisList)) return;
+      hooks.onExpired?.();
+      return reloadQuietly();
+    }
+    if (!ofThisList(event.op)) return;
     if (event.type === 'rejected') {
       hooks.onRejected?.(event);
       return reloadQuietly();
     }
-    const { op } = event;
-    if (op.kind === 'remove') {
-      serverItems.value = serverItems.value.filter((item) => item.id !== op.itemId);
-    } else if (event.item) {
-      upsert(event.item);
-    }
+    applySynced(event);
+    if (loadsInFlight > 0) syncedDuringLoad = [...syncedDuringLoad, event];
     saveSnapshot();
     // The first answer after an outage: catch up on what other members did.
     if (fromOfflineCopy.value) reloadQuietly();
@@ -197,41 +244,13 @@ export function useListItems(
     enqueue({ kind: 'remove', listId: shoppingListId(), itemId: item.id });
   };
 
-  // Keeps `overrides` in step with an item the server just answered.
-  const rememberOverride = (item: ListItem) => {
-    const customItemId = item.customItem?.id ?? null;
-    const sectionKey = item.sectionKey === item.defaultSectionKey ? null : item.sectionKey;
-    const rest = overrides.value.filter((saved) =>
-      customItemId
-        ? saved.customItemId !== customItemId
-        : saved.catalogItemKey !== item.catalogItemKey,
-    );
-    overrides.value =
-      item.iconKey || sectionKey
-        ? [...rest, { catalogItemKey: item.catalogItemKey, customItemId, iconKey: item.iconKey, sectionKey }]
-        : rest;
-  };
-
-  // The icon or store section chosen in the item menu (ADR-0026, ADR-0029).
-  const setOverride = async (item: ListItem, override: ListItemOverride) => {
-    if (isTempId(item.id)) throw new NeedsConnectionError();
-    const previous = serverItems.value.find((existing) => existing.id === item.id);
-    if (!previous) return;
-    upsert(
-      'iconKey' in override
-        ? { ...previous, iconKey: override.iconKey }
-        : { ...previous, sectionKey: override.sectionKey ?? previous.defaultSectionKey },
-    );
-    try {
-      const { data } = await api.patch<{ item: ListItem }>(`${base()}/${item.id}`, override);
-      upsert(data.item);
-      rememberOverride(data.item);
-      saveSnapshot();
-    } catch (error: unknown) {
-      upsert(previous);
-      throw isTransientFailure(error) ? new NeedsConnectionError() : error;
-    }
-  };
+  const setOverride = createOverrideUpdate({
+    serverItems,
+    overrides,
+    upsert,
+    itemsUrl: base,
+    saveSnapshot,
+  });
 
   return {
     items,

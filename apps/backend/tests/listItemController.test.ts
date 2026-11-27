@@ -5,6 +5,7 @@
  */
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { QueryFailedError } from 'typeorm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/db/data-source', () => ({
@@ -160,6 +161,23 @@ describe('list item override and section order routes (service layer mocked)', (
       .send({ catalogItemKey: 'milk' });
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ message: 'Unable to add item.' });
+  });
+
+  it.each([
+    ['23503', 404],
+    ['22P02', 400],
+    ['23514', 400],
+    ['40P01', 500],
+  ])('POST /items → database error %s answers %i, so a change that always fails is dropped', async (code, status) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(ListItemService.prototype, 'addListItem').mockRejectedValue(
+      new QueryFailedError('INSERT', [], Object.assign(new Error('db'), { code })),
+    );
+    const response = await request(createApp())
+      .post(`/api/lists/${LIST}/items`)
+      .set(auth())
+      .send({ catalogItemKey: 'milk' });
+    expect(response.status).toBe(status);
   });
 
   it('PUT /section-order → 200 and passes the order on', async () => {

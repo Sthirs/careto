@@ -2,20 +2,31 @@ import { Response } from 'express';
 
 import { AuthedRequest, AuthenticatedRequest } from '../../middleware/auth';
 import { getCatalog as loadCatalog } from '../../services/catalogService';
-import { NotFoundError, SupersededChangeError } from '../../services/domainErrors';
+import { NotFoundError, postgresCodeOf, SupersededChangeError } from '../../services/domainErrors';
 import { parseAddItemBody, parseItemUpdateBody } from './listItemBodies';
 import { occurredAtOf } from './occurredAt';
 import { listItemService } from './listItemServiceInstance';
 
+/** A row the request refers to is gone (`foreign_key_violation`). */
+const GONE_CODES = new Set(['23503']);
+/** Input the database refuses every time: bad text, null, check, too long. */
+const INVALID_CODES = new Set(['22P02', '23502', '23514', '22001']);
+
 /**
  * Membership and lookup failures are 404s, like the rest of the list API; a
- * change overtaken by a later one is a 409 (ADR-0031). Anything else is
+ * change overtaken by a later one is a 409 (ADR-0031). A database error that
+ * would fail the same way on every retry is a 4xx too. Anything else is
  * unexpected, such as the database being down, and is a 500: the offline
- * outbox retries a 5xx but drops a 4xx (ADR-0030).
+ * outbox retries a 5xx but drops a 4xx (ADR-0030, ADR-0031).
  */
 export const sendError = (response: Response, error: unknown, fallback: string) => {
-  if (error instanceof NotFoundError) {
-    response.status(404).json({ message: error.message });
+  const code = postgresCodeOf(error);
+  if (error instanceof NotFoundError || (code && GONE_CODES.has(code))) {
+    response.status(404).json({ message: error instanceof NotFoundError ? error.message : 'Item not found.' });
+    return;
+  }
+  if (code && INVALID_CODES.has(code)) {
+    response.status(400).json({ message: fallback });
     return;
   }
   if (error instanceof SupersededChangeError) {

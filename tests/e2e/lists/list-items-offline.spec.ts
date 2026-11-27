@@ -95,3 +95,34 @@ test('list items offline: a later change by another member wins over an older of
   const { items } = await api<{ items: ServerItem[] }>(owner.token, 'GET', `/lists/${list.id}/items`);
   expect(items.map((item) => `${item.catalogItemKey}:${item.status}`)).toEqual(['bread:bought']);
 });
+
+// ADR-0031: offline is meant for minutes or hours. A change still waiting an
+// hour after the tap is discarded, and the list reloads and says so.
+test('list items offline: a change waiting more than an hour is discarded', async ({ pageForUser }) => {
+  const owner = await registerNamedUser('Late');
+  const list = await createShoppingListViaApi(owner, [], 'e2e-offline-expired');
+  await api(owner.token, 'POST', `/lists/${list.id}/items`, { catalogItemKey: 'bread' });
+  const page = await pageForUser(owner.email, owner.password);
+  const detailPage = new ShoppingListDetailPage(page);
+
+  await page.goto(`/lists/${list.id}`);
+  await expect.poll(() => detailPage.tileNames(detailPage.toBuyList())).toEqual(['Bread']);
+
+  await page.context().setOffline(true);
+  await expect(detailPage.syncStatus()).toContainText("You're offline");
+  await detailPage.swipeRemove('Bread', { offline: true });
+  await expect(page.getByTestId('sync-pending')).toHaveText('1 change waiting to sync');
+
+  // An hour and a minute later, the connection is back.
+  await page.clock.setFixedTime(Date.now() + 61 * 60_000);
+  await page.context().setOffline(false);
+
+  await expect(page.getByRole('alert')).toHaveText(
+    'Changes made offline more than an hour ago were discarded, so the list was reloaded.',
+    { timeout: 45_000 },
+  );
+  await expect.poll(() => detailPage.tileNames(detailPage.toBuyList())).toEqual(['Bread']);
+  await expect(detailPage.syncStatus()).toBeHidden();
+  const { items } = await api<{ items: ServerItem[] }>(owner.token, 'GET', `/lists/${list.id}/items`);
+  expect(items.map((item) => `${item.catalogItemKey}:${item.status}`)).toEqual(['bread:to_buy']);
+});

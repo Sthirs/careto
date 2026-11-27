@@ -20,6 +20,7 @@ import { useListItems } from '@/composables/useListItems';
 import { useRoutedOverlay } from '@/composables/useRoutedOverlay';
 import { goBackTo } from '@/lib/backNavigation';
 import { formatAgo, formatShortDate, toIsoDate } from '@/lib/dishDates';
+import { isTempId } from '@/lib/offline/outboxOps';
 
 const { t, locale } = useI18n();
 const route = useRoute();
@@ -39,7 +40,9 @@ const form = useDishForm(() => shoppingListId.value, () => dishId.value);
 const { name, ingredients, imageUrl, pausedUntil, lastAddedAt, isSaving, canSave } = form;
 const { catalog, loadCatalog } = useItemCatalog();
 const { customItems, overrides, loadItems } = useListItems(() => shoppingListId.value);
-const results = useItemSearch(query, catalog, customItems, form.takenKeys, overrides);
+// A custom item typed offline has no server id yet, so a dish cannot use it.
+const syncedCustomItems = computed(() => customItems.value.filter((item) => !isTempId(item.id)));
+const results = useItemSearch(query, catalog, syncedCustomItems, form.takenKeys, overrides);
 const pauseSheet = useRoutedOverlay('pause-dish');
 const deleteSheet = useRoutedOverlay('delete-dish');
 
