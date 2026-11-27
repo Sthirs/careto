@@ -58,4 +58,4 @@ in the repository root). ADRs derive from the specification in [`docs/specificat
 | [ADR-0027](0027-recurring-products-and-auto-fill.md) | Recurring products and auto-fill — item event log, derived habits, in-process job | 🟢 accepted |
 | [ADR-0028](0028-http-response-compression.md) | HTTP response compression — each origin compresses its own responses | 🟢 accepted |
 | [ADR-0029](0029-per-list-item-overrides.md) | Item icon and section overrides kept per list item, not per list row | 🟢 accepted |
-| [ADR-0030](0030-offline-list-edits-outbox.md) | Offline list edits — a saved outbox replayed in order, with the time of the tap | 🟡 proposed |
+| [ADR-0030](0030-offline-list-edits-outbox.md) | Offline list edits — a saved outbox replayed in order, with the time of the tap | 🟢 accepted |

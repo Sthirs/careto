@@ -1,6 +1,6 @@
 # ADR-0030: Offline list edits — a saved outbox replayed in order, with the time of the tap
 
-- **Status:** 🟡 proposed
+- **Status:** 🟢 accepted
 - **Date:** 2026-11-27
 - **Deciders:** Sthirs
 
