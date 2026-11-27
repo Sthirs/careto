@@ -1,8 +1,9 @@
-import { computed, ref, watch, type Ref } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, watch, type Ref } from 'vue';
 
 import type { ItemMenuTarget } from '@/components/list-items/ItemMenuSheet.vue';
 import { useRoutedOverlay } from '@/composables/useRoutedOverlay';
 import { iconForItem } from '@/lib/itemIcons';
+import { onOutboxEvent } from '@/lib/offline/outbox';
 import type { ListItem, ListItemOverride } from '@/types/listItem';
 
 /** The icon a tile shows: the chosen one, else the item's own (ADR-0026). */
@@ -24,6 +25,15 @@ export function useItemMenu(
   const overlay = useRoutedOverlay('item-menu');
   const itemId = ref<string | null>(null);
   const item = computed(() => items.value.find((candidate) => candidate.id === itemId.value) ?? null);
+
+  // An item added a moment ago shows under a temporary id until the server
+  // answers (ADR-0030); the open sheet follows it to its real id, in the same
+  // step the list swaps it, instead of closing on the user.
+  const stopFollowing = onOutboxEvent((event) => {
+    if (event.type !== 'synced' || event.op.kind !== 'add' || !event.item) return;
+    if (itemId.value === event.op.tempItemId) itemId.value = event.item.id;
+  });
+  if (getCurrentScope()) onScopeDispose(stopFollowing);
 
   watch(
     () => overlay.isOpen.value,

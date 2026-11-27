@@ -2,6 +2,7 @@ import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 import { registerSW } from 'virtual:pwa-register';
 import { createBrowserPorts, checkForNewBuild, shouldRunCheck } from '@/lib/appVersion';
+import { startOutboxSync } from '@/lib/offline/outbox';
 import { setupPushNotifications } from '@/lib/push';
 import { onAccessTokenChange, onSessionExpired } from '@/lib/sessionRefresh';
 import { installViewportResync } from '@/lib/viewportResync';
@@ -70,6 +71,20 @@ onSessionExpired(() => {
 
   authStore.$subscribe(wirePushIfNeeded);
   wirePushIfNeeded();
+
+  // ADR-0030: the list-item outbox belongs to the signed-in user. Started
+  // here rather than by the list screen, so changes keep syncing on any
+  // screen; an expired session pauses it and the same user resumes it.
+  let outboxUserId: string | null = null;
+  const wireOutbox = () => {
+    const userId = authStore.token ? (authStore.user?.id ?? null) : null;
+    if (userId === outboxUserId) return;
+    outboxUserId = userId;
+    startOutboxSync(userId);
+  };
+
+  authStore.$subscribe(wireOutbox);
+  wireOutbox();
 }
 
 // Mirror the active locale into <html lang> at boot; the auth store will

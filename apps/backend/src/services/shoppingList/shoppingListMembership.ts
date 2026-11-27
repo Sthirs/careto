@@ -1,4 +1,5 @@
 import { ShoppingList } from '../../entities/ShoppingList';
+import { NotFoundError } from '../domainErrors';
 import { invitationService } from '../invitationService';
 import type { ShoppingListRepositories } from './shoppingListRepositories';
 
@@ -21,7 +22,7 @@ export async function getShoppingListForMember(
     .getOne();
 
   if (!shoppingList) {
-    throw new Error('List not found or you are not a member.');
+    throw new NotFoundError('List not found or you are not a member.');
   }
 
   return shoppingList;

@@ -1,5 +1,11 @@
 import { createJsonRequest, ensureBackendAvailable } from './helpers/api';
-import { bearer, createSoloShoppingList, newUser, UNKNOWN_ID } from './helpers/lists';
+import {
+  bearer,
+  createShoppingListWithMembers,
+  createSoloShoppingList,
+  newUser,
+  UNKNOWN_ID,
+} from './helpers/lists';
 
 type Item = {
   id: string;
@@ -91,6 +97,70 @@ describe('list items API', () => {
     });
     expect(foreign.status).toBe(404);
     expect((await getItems(second.owner.token, second.shoppingListId)).body.customItems).toEqual([]);
+  });
+
+  it('dates a synced offline change at the time of the tap (ADR-0030)', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('items-offline');
+    const added = await createJsonRequest<{ item: Item }>(itemsPath(shoppingListId), {
+      method: 'POST',
+      headers: { ...bearer(owner.token), 'X-Occurred-At': new Date(Date.now() - 5 * 60_000).toISOString() },
+      body: JSON.stringify({ catalogItemKey: 'milk' }),
+    });
+    const itemPath = `${itemsPath(shoppingListId)}/${added.body.item.id}`;
+    const patch = (status: string, occurredAt: string) =>
+      createJsonRequest<{ item: Item }>(itemPath, {
+        method: 'PATCH',
+        headers: { ...bearer(owner.token), 'X-Occurred-At': occurredAt },
+        body: JSON.stringify({ status }),
+      });
+
+    const tappedAt = new Date(Date.now() - 4 * 60_000).toISOString();
+    const bought = await patch('bought', tappedAt);
+    expect(bought.status).toBe(200);
+    expect(bought.body.item.lastBoughtAt).toBe(tappedAt);
+
+    // A clock ahead of the server never dates a change in the future.
+    await patch('to_buy', new Date().toISOString());
+    const before = Date.now();
+    const future = await patch('bought', new Date(Date.now() + 3_600_000).toISOString());
+    expect(future.status).toBe(200);
+    const recorded = new Date(future.body.item.lastBoughtAt as string).getTime();
+    expect(recorded).toBeGreaterThanOrEqual(before - 5_000);
+    expect(recorded).toBeLessThanOrEqual(Date.now() + 5_000);
+  });
+
+  it('refuses a late change once another member changed the item after it (ADR-0031)', async () => {
+    const { shoppingListId, members } = await createShoppingListWithMembers('items-latest', 1);
+    const [anna, ben] = members;
+    const tappedAt = new Date(Date.now() - 2 * 60_000).toISOString();
+    const send = (token: string, method: string, path: string, body?: unknown) =>
+      createJsonRequest<{ item: Item }>(path, {
+        method,
+        headers: { ...bearer(token), 'X-Occurred-At': tappedAt },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+
+    // Anna's add lands, but she never hears back; Ben then buys the item.
+    const added = await send(anna.token, 'POST', itemsPath(shoppingListId), { catalogItemKey: 'milk' });
+    expect(added.status).toBe(201);
+    const itemPath = `${itemsPath(shoppingListId)}/${added.body.item.id}`;
+    const benBuys = await createJsonRequest<{ item: Item }>(itemPath, {
+      method: 'PATCH',
+      headers: bearer(ben.token),
+      body: JSON.stringify({ status: 'bought' }),
+    });
+    expect(benBuys.status).toBe(200);
+
+    // Anna's outbox resends the add: it must not undo Ben's buy.
+    const resent = await send(anna.token, 'POST', itemsPath(shoppingListId), { catalogItemKey: 'milk' });
+    expect(resent.status).toBe(409);
+    // A buy and a removal tapped before Ben's buy are refused too.
+    expect((await send(anna.token, 'PATCH', itemPath, { status: 'to_buy' })).status).toBe(409);
+    expect((await send(anna.token, 'DELETE', itemPath)).status).toBe(409);
+
+    const [item] = (await getItems(anna.token, shoppingListId)).body.items;
+    expect(item).toMatchObject({ id: added.body.item.id, status: 'bought' });
+    expect(item.lastBoughtAt).toBe(benBuys.body.item.lastBoughtAt);
   });
 
   it('validates the add body', async () => {

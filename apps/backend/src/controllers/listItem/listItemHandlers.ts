@@ -2,13 +2,39 @@ import { Response } from 'express';
 
 import { AuthedRequest, AuthenticatedRequest } from '../../middleware/auth';
 import { getCatalog as loadCatalog } from '../../services/catalogService';
+import { NotFoundError, postgresCodeOf, SupersededChangeError } from '../../services/domainErrors';
 import { parseAddItemBody, parseItemUpdateBody } from './listItemBodies';
+import { occurredAtOf } from './occurredAt';
 import { listItemService } from './listItemServiceInstance';
 
-/** Membership and lookup failures are 404s, like the rest of the list API. */
+/** A row the request refers to is gone (`foreign_key_violation`). */
+const GONE_CODES = new Set(['23503']);
+/** Input the database refuses every time: bad text, null, check, too long. */
+const INVALID_CODES = new Set(['22P02', '23502', '23514', '22001']);
+
+/**
+ * Membership and lookup failures are 404s, like the rest of the list API; a
+ * change overtaken by a later one is a 409 (ADR-0031). A database error that
+ * would fail the same way on every retry is a 4xx too. Anything else is
+ * unexpected, such as the database being down, and is a 500: the offline
+ * outbox retries a 5xx but drops a 4xx (ADR-0030, ADR-0031).
+ */
 export const sendError = (response: Response, error: unknown, fallback: string) => {
-  const message = error instanceof Error ? error.message : fallback;
-  response.status(message.includes('not found') ? 404 : 400).json({ message });
+  const code = postgresCodeOf(error);
+  if (error instanceof NotFoundError || (code && GONE_CODES.has(code))) {
+    response.status(404).json({ message: error instanceof NotFoundError ? error.message : 'Item not found.' });
+    return;
+  }
+  if (code && INVALID_CODES.has(code)) {
+    response.status(400).json({ message: fallback });
+    return;
+  }
+  if (error instanceof SupersededChangeError) {
+    response.status(409).json({ message: error.message });
+    return;
+  }
+  console.error('[api] List item request failed', error);
+  response.status(500).json({ message: fallback });
 };
 
 export const getCatalog = async (
@@ -46,6 +72,7 @@ export const addItem = async (
       request.params.id as string,
       parsed.value,
       auth.userId,
+      occurredAtOf(request),
     );
     response.status(created ? 201 : 200).json({ item });
   } catch (error: unknown) {
@@ -71,7 +98,13 @@ export const updateItem = async (
     const update = parsed.value;
     const item =
       'status' in update
-        ? await listItemService.setListItemStatus(listId, itemId, update.status, auth.userId)
+        ? await listItemService.setListItemStatus(
+            listId,
+            itemId,
+            update.status,
+            auth.userId,
+            occurredAtOf(request),
+          )
         : await listItemService.setListItemOverride(listId, itemId, update, auth.userId);
     response.json({ item });
   } catch (error: unknown) {
@@ -89,6 +122,7 @@ export const removeItem = async (
       request.params.id as string,
       request.params.itemId as string,
       auth.userId,
+      occurredAtOf(request),
     );
     response.status(204).end();
   } catch (error: unknown) {

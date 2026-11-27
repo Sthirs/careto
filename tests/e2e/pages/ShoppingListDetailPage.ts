@@ -67,8 +67,10 @@ export class ShoppingListDetailPage {
 
   // Wait for the status write: the tile moves before the server answers, and a
   // next action sent while it is in flight can be overtaken by its response.
-  async markBought(itemName: string): Promise<void> {
-    const saved = this.itemWritten('PATCH');
+  // Offline (ADR-0030) there is no request to wait for: the change waits in
+  // the outbox until the connection is back.
+  async markBought(itemName: string, { offline = false } = {}): Promise<void> {
+    const saved = offline ? null : this.itemWritten('PATCH');
     await this.toBuyList().getByRole('button', { name: `Mark ${itemName} as bought` }).click();
     await saved;
   }
@@ -80,18 +82,23 @@ export class ShoppingListDetailPage {
   }
 
   /** ListItemTile.vue: a left swipe past the threshold removes the item. */
-  async swipeRemove(itemName: string): Promise<void> {
+  async swipeRemove(itemName: string, { offline = false } = {}): Promise<void> {
     const tile = this.toBuyList().getByTestId('list-item').filter({ hasText: itemName });
     const box = await tile.boundingBox();
     if (!box) throw new Error(`swipeRemove: no tile for ${itemName}`);
     const y = box.y + box.height / 2;
-    const removed = this.itemWritten('DELETE');
+    const removed = offline ? null : this.itemWritten('DELETE');
     await this.page.mouse.move(box.x + box.width - 10, y);
     await this.page.mouse.down();
     await this.page.mouse.move(box.x + box.width / 2, y, { steps: 5 });
     await this.page.mouse.move(box.x + 10, y, { steps: 5 });
     await this.page.mouse.up();
     await removed;
+  }
+
+  // SyncStatusBanner.vue: shown while offline or while changes wait to sync.
+  syncStatus() {
+    return this.page.getByTestId('sync-status');
   }
 
   // ItemMenuSheet.vue: the ⋮ sheet of a to-buy tile (ADR-0026).

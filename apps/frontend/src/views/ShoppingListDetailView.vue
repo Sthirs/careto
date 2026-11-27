@@ -10,15 +10,20 @@ import ItemSearchField from '@/components/list-items/ItemSearchField.vue';
 import ItemSearchResults from '@/components/list-items/ItemSearchResults.vue';
 import LastUsedSection from '@/components/list-items/LastUsedSection.vue';
 import ListItemTile from '@/components/list-items/ListItemTile.vue';
+import SyncStatusBanner from '@/components/list-items/SyncStatusBanner.vue';
 import ListSectionsDock from '@/components/list-sections/ListSectionsDock.vue';
 import ScreenHeader from '@/components/ScreenHeader.vue';
 import { useItemCatalog } from '@/composables/useItemCatalog';
 import { tileIconOf, useItemMenu } from '@/composables/useItemMenu';
 import { useItemSearch, type SearchResult } from '@/composables/useItemSearch';
-import { useListItems } from '@/composables/useListItems';
+import { NeedsConnectionError, useListItems } from '@/composables/useListItems';
 import { api } from '@/lib/api';
 import { goBackTo } from '@/lib/backNavigation';
 import { clearLastListId } from '@/lib/lastList';
+import { browserOnline } from '@/lib/offline/connectivity';
+import { readListSnapshot, saveListSnapshot } from '@/lib/offline/listSnapshot';
+import { isTransientFailure } from '@/lib/offline/networkErrors';
+import { pendingOps, syncState } from '@/lib/offline/outbox';
 import { sortLastUsed, sortToBuy } from '@/lib/listItemOrder';
 import { useAuthStore } from '@/stores/auth';
 
@@ -56,7 +61,19 @@ const {
   setStatus,
   removeItem,
   setOverride,
-} = useListItems(() => shoppingListId.value);
+} = useListItems(() => shoppingListId.value, {
+  // Every dropped change reloads the list and says why (ADR-0030, ADR-0031):
+  // 404, another member removed the item; 409, a later change of it won.
+  onRejected: ({ status }) => {
+    if (status === 409) actionError.value = t('shoppingListDetail.syncSuperseded');
+    else if (status === 404) actionError.value = t('shoppingListDetail.syncItemGone');
+    else actionError.value = t('shoppingListDetail.syncRejected');
+  },
+  onExpired: () => {
+    actionError.value = t('shoppingListDetail.syncExpired');
+  },
+});
+const pendingCount = computed(() => pendingOps.value.filter((op) => op.listId === shoppingListId.value).length);
 const toBuyKeys = computed(
   () =>
     new Set(
@@ -84,18 +101,29 @@ const toBuy = computed(() =>
 const lastUsed = computed(() => sortLastUsed(items.value).map(tileOf));
 const isSearching = computed(() => query.value.trim().length > 0);
 
+const loadDetail = async (): Promise<ShoppingListDetail> => {
+  const listId = shoppingListId.value;
+  const userId = authStore.user?.id;
+  try {
+    const { data } = await api.get<{ shoppingList: ShoppingListDetail }>(`/lists/${listId}`);
+    if (userId) saveListSnapshot(userId, listId, { shoppingList: data.shoppingList });
+    return data.shoppingList;
+  } catch (error: unknown) {
+    // Offline (ADR-0030): the copy saved on the last visit, if any.
+    const copy = userId && isTransientFailure(error) ? readListSnapshot(userId, listId)?.shoppingList : null;
+    if (!copy) throw error;
+    return copy;
+  }
+};
+
 const loadShoppingList = async () => {
   isLoading.value = true;
   errorMessage.value = '';
 
   try {
-    const [{ data }] = await Promise.all([
-      api.get<{ shoppingList: ShoppingListDetail }>(`/lists/${shoppingListId.value}`),
-      loadItems(),
-      loadCatalog(),
-    ]);
-    shoppingList.value = data.shoppingList;
-    title.value = data.shoppingList.name;
+    const [detail] = await Promise.all([loadDetail(), loadItems(), loadCatalog()]);
+    shoppingList.value = detail;
+    title.value = detail.name;
   } catch (error) {
     // The list is gone or the user left it: stop reopening it on launch, and
     // when the launch reopened it, fall back to My lists instead of an error.
@@ -116,8 +144,11 @@ const runAction = async (action: () => Promise<unknown>) => {
   actionError.value = '';
   try {
     await action();
-  } catch {
-    actionError.value = t('shoppingListDetail.actionFailed');
+  } catch (error: unknown) {
+    actionError.value =
+      error instanceof NeedsConnectionError
+        ? t('shoppingListDetail.needsConnection')
+        : t('shoppingListDetail.actionFailed');
   }
 };
 
@@ -174,6 +205,7 @@ onMounted(loadShoppingList);
       </p>
 
       <template v-else-if="shoppingList">
+        <SyncStatusBanner :online="browserOnline" :waiting="syncState === 'waiting'" :pending-count="pendingCount" />
         <p v-if="actionError" role="alert" class="rounded-xl border border-danger/40 bg-danger/15 px-4 py-3 text-sm font-semibold text-white">
           {{ actionError }}
         </p>

@@ -6,6 +6,7 @@ import ShoppingListDetailView from '@/views/ShoppingListDetailView.vue';
 import { resetItemCatalogCache } from '@/composables/useItemCatalog';
 import { i18n } from '@/i18n';
 import { api } from '@/lib/api';
+import { resetOutbox } from '@/lib/offline/outbox';
 import type { ListItem } from '@/types/listItem';
 
 const route = vi.hoisted(() => ({ value: null as unknown as { query: Record<string, string> } }));
@@ -94,6 +95,9 @@ const openMenu = async (name: string) => {
 
 describe('list item ⋮ menu', () => {
   beforeEach(() => {
+    resetOutbox();
+    localStorage.clear();
+    localStorage.setItem('careto.auth.token', 'test-token');
     setActivePinia(createPinia());
     vi.clearAllMocks();
     resetItemCatalogCache();
@@ -151,7 +155,7 @@ describe('list item ⋮ menu', () => {
     button('Remove from list').click();
     await flushPromises();
 
-    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i1');
+    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i1', expect.objectContaining({ headers: expect.any(Object) }));
     expect(toBuyNames()).toEqual(['Kombucha']);
     expect(route.value.query.overlay).toBeUndefined();
   });
@@ -185,6 +189,33 @@ describe('list item ⋮ menu', () => {
     // The sheet goes back to the item's actions instead of closing.
     expect(route.value.query.overlay).toBe('item-menu');
     expect(body().querySelector('[data-testid="item-menu"]')).not.toBeNull();
+  });
+
+  it('stays open on an item added a moment ago when the server gives it its real id', async () => {
+    let answer = (_value: unknown) => {};
+    vi.mocked(api.post).mockReturnValue(new Promise((done) => (answer = done)) as never);
+    const wrapper = await mountView();
+    await wrapper.find('#item-search').setValue('Oat drink');
+    await wrapper.find('button[aria-label="Add Oat drink as a custom item"]').trigger('click');
+    await flushPromises();
+    await openMenu('Oat drink');
+    expect(body().querySelector('[data-testid="item-menu"]')?.textContent).toContain('Oat drink');
+
+    answer({
+      data: {
+        item: listItem({
+          id: 'i3',
+          catalogItemKey: null,
+          customItem: { id: 'c2', name: 'Oat drink' },
+          sectionKey: 'own-items',
+          defaultSectionKey: 'own-items',
+        }),
+      },
+    });
+    await flushPromises();
+
+    expect(route.value.query.overlay).toBe('item-menu');
+    expect(body().querySelector('[data-testid="item-menu"]')?.textContent).toContain('Oat drink');
   });
 
   it('goes back to the actions when a picker is cancelled', async () => {

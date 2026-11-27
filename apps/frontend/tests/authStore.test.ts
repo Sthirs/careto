@@ -7,10 +7,12 @@ import type { AuthUser } from '@/types/auth';
 // logout() calls POST /auth/session/logout for server-side revocation.
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
+const mockApiPatch = vi.fn();
 vi.mock('@/lib/api', () => ({
   api: {
     get: (...args: unknown[]) => mockApiGet(...args),
     post: (...args: unknown[]) => mockApiPost(...args),
+    patch: (...args: unknown[]) => mockApiPatch(...args),
   },
 }));
 
@@ -44,6 +46,8 @@ beforeEach(() => {
     setItem: (k: string, v: string) => { memStore[k] = String(v); },
     removeItem: (k: string) => { delete memStore[k]; },
     clear: () => { for (const k of Object.keys(memStore)) delete memStore[k]; },
+    key: (index: number) => Object.keys(memStore)[index] ?? null,
+    get length() { return Object.keys(memStore).length; },
   });
 });
 afterEach(() => {
@@ -176,6 +180,45 @@ describe('useAuthStore fetchCurrentUser', () => {
     expect(localStorage.getItem(TOKEN_KEY)).toBe('test-token-429');
   });
 
+  it('(g) offline cold start → the user last seen on this device (ADR-0030)', async () => {
+    const authStore = useAuthStore();
+    authStore.token = 'test-token-offline';
+    localStorage.setItem(TOKEN_KEY, 'test-token-offline');
+    localStorage.setItem('careto.offline.user', JSON.stringify(makeUser({ id: 'user-7' })));
+
+    mockApiGet.mockRejectedValueOnce(makeNetworkError());
+
+    const result = await authStore.fetchCurrentUser();
+
+    expect(result?.id).toBe('user-7');
+    expect(authStore.user?.id).toBe('user-7');
+    expect(authStore.token).toBe('test-token-offline');
+  });
+
+  it('(h) a 401 never falls back to the device copy', async () => {
+    const authStore = useAuthStore();
+    authStore.token = 'test-token-dead';
+    localStorage.setItem('careto.offline.user', JSON.stringify(makeUser()));
+
+    mockApiGet.mockRejectedValueOnce(makeAxiosError(401));
+
+    expect(await authStore.fetchCurrentUser()).toBeNull();
+    expect(authStore.user).toBeNull();
+    expect(localStorage.getItem('careto.offline.user')).toBeNull();
+  });
+
+  it('(i) a damaged device copy of the user counts as none', async () => {
+    const authStore = useAuthStore();
+    authStore.token = 'test-token-offline';
+    for (const damaged of ['{}', '[]', '5', JSON.stringify({ id: 7 })]) {
+      localStorage.setItem('careto.offline.user', damaged);
+      mockApiGet.mockRejectedValueOnce(makeNetworkError());
+
+      expect(await authStore.fetchCurrentUser()).toBeNull();
+      expect(authStore.user).toBeNull();
+    }
+  });
+
   it('(f) success → user set, locale applied', async () => {
     const authStore = useAuthStore();
     const user = makeUser({ language: 'de' });
@@ -230,6 +273,22 @@ describe('auth store — sign-out (ADR-0018)', () => {
 
     expect(mockRemovePushSubscription).toHaveBeenCalledTimes(1);
     expect(store.token).toBe('');
+  });
+
+  it("logout() drops the user's offline copies and waiting changes (ADR-0030)", async () => {
+    memStore[TOKEN_KEY] = 'live-token';
+    memStore['careto.outbox.user-1'] = '[]';
+    memStore['careto.offline.user-1.list.l1'] = '{}';
+    memStore['careto.offline.user-2.list.l1'] = '{}';
+    memStore['careto.offline.user'] = '{}';
+    mockApiPost.mockResolvedValue({ data: undefined });
+    mockRemovePushSubscription.mockResolvedValue(undefined);
+    const store = useAuthStore();
+    store.user = makeUser();
+
+    await store.logout();
+
+    expect(Object.keys(memStore)).toEqual(['careto.offline.user-2.list.l1']);
   });
 
   it('logout() still clears locally when the revocation request fails', async () => {
@@ -334,5 +393,30 @@ describe('auth store — tryRestoreSession (ADR-0018)', () => {
     expect(await store.tryRestoreSession()).toBeNull();
     expect(store.token).toBe('');
     expect(store.isAuthenticated).toBe(false);
+  });
+});
+
+describe('auth store — updateProfile', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it('keeps the device copy of the user in step, so an offline start shows the new profile', async () => {
+    const authStore = useAuthStore();
+    authStore.user = makeUser();
+    localStorage.setItem('careto.offline.user', JSON.stringify(makeUser()));
+    mockApiPatch.mockResolvedValueOnce({
+      data: { user: makeUser({ displayName: 'Alicia', language: 'it' }) },
+    });
+
+    await authStore.updateProfile({ displayName: 'Alicia', language: 'it' });
+
+    expect(JSON.parse(localStorage.getItem('careto.offline.user') ?? 'null')).toMatchObject({
+      id: 'user-1',
+      displayName: 'Alicia',
+      language: 'it',
+    });
   });
 });

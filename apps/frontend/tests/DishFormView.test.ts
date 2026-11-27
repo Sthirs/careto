@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 import DishFormView from '@/views/DishFormView.vue';
+import { pendingOps, resetOutbox } from '@/lib/offline/outbox';
 import { resetItemCatalogCache } from '@/composables/useItemCatalog';
 import { i18n } from '@/i18n';
 import { api } from '@/lib/api';
@@ -113,6 +114,29 @@ describe('DishFormView', () => {
       ingredients: [{ catalogItemKey: 'pasta' }, { customName: 'Basil from the garden' }],
     });
     expect(router.replace).toHaveBeenCalledWith({ name: 'list-dishes', params: { id: 'list-1' } });
+  });
+
+  it('does not offer a custom item still waiting to sync, which has no server id', async () => {
+    // Typed on the list while offline: only a temporary id so far.
+    pendingOps.value = [
+      { id: 'o1', listId: 'list-1', occurredAt: new Date().toISOString(), kind: 'add', tempItemId: 'local:t', input: { customName: 'Tofu' } },
+    ];
+    vi.mocked(api.post).mockResolvedValue({ data: { dish: { id: 'd9' } } });
+    try {
+      const wrapper = await mountView();
+      await wrapper.find('#dish-name').setValue('Stir fry');
+      await wrapper.find('#item-search').setValue('Tofu');
+      await wrapper.find('button[aria-label="Add Tofu as a custom item"]').trigger('click');
+      await saveButton(wrapper).trigger('click');
+      await flushPromises();
+
+      expect(api.post).toHaveBeenCalledWith('/lists/list-1/dishes', {
+        name: 'Stir fry',
+        ingredients: [{ customName: 'Tofu' }],
+      });
+    } finally {
+      resetOutbox();
+    }
   });
 
   it('edits an existing dish and shows its pause', async () => {

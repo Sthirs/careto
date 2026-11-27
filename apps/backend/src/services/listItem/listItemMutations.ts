@@ -1,9 +1,10 @@
-import { IsNull, QueryFailedError } from 'typeorm';
+import { IsNull } from 'typeorm';
 
 import { ListCustomItem } from '../../entities/ListCustomItem';
 import { ListItem, ListItemSource, ListItemStatus } from '../../entities/ListItem';
+import { NotFoundError, postgresCodeOf, SupersededChangeError } from '../domainErrors';
 import { getShoppingListForMember } from '../shoppingList/shoppingListMembership';
-import { recordItemEvent } from './itemEvents';
+import { isSupersededAt, recordItemEvent } from './itemEvents';
 import type { ListItemRepositories } from './listItemRepositories';
 import { serializeWithOverride, type ItemReference } from './itemOverrides';
 import type { SerializedListItem } from './listItemSerialization';
@@ -30,7 +31,7 @@ export async function findMemberListItem(
     where: { id: itemId, shoppingListId },
     relations: ITEM_RELATIONS,
   });
-  if (!item) throw new Error('Item not found.');
+  if (!item) throw new NotFoundError('Item not found.');
   return item;
 }
 
@@ -38,9 +39,7 @@ export async function findMemberListItem(
 export const UNBUY_GRACE_MS = 5 * 60_000;
 
 /** Postgres `unique_violation`: a concurrent request inserted the same row. */
-export const isUniqueViolation = (error: unknown): boolean =>
-  error instanceof QueryFailedError &&
-  (error.driverError as { code?: string } | undefined)?.code === '23505';
+export const isUniqueViolation = (error: unknown): boolean => postgresCodeOf(error) === '23505';
 
 export const normalizeCustomName = (name: string): string =>
   name.trim().replace(/\s+/g, ' ');
@@ -87,7 +86,7 @@ export async function resolveReference(
     const exists = await repositories.catalogItemRepository.exists({
       where: { key: input.catalogItemKey },
     });
-    if (!exists) throw new Error('Catalog item not found.');
+    if (!exists) throw new NotFoundError('Catalog item not found.');
     return { catalogItemKey: input.catalogItemKey, customItemId: null };
   }
 
@@ -95,7 +94,7 @@ export async function resolveReference(
     const exists = await repositories.customItemRepository.exists({
       where: { id: input.customItemId, shoppingListId },
     });
-    if (!exists) throw new Error('Custom item not found.');
+    if (!exists) throw new NotFoundError('Custom item not found.');
     return { catalogItemKey: null, customItemId: input.customItemId };
   }
 
@@ -114,7 +113,7 @@ export async function resolveReference(
  * duplicated. `source` says why the item is to buy now (ADR-0024): a bought
  * item takes the caller's source, and a hand add claims a to-buy item. Each
  * add that puts the item to buy, or claims it, is logged (ADR-0027). A null
- * `userId` is the system adding it.
+ * `userId` is the system adding it. `at` is when the add happened (ADR-0030).
  */
 export async function ensureListItem(
   repositories: ListItemRepositories,
@@ -122,6 +121,7 @@ export async function ensureListItem(
   reference: ItemReference,
   source: ListItemSource,
   userId: string | null,
+  at: Date = new Date(),
 ): Promise<{ item: ListItem; created: boolean }> {
   const where = reference.catalogItemKey
     ? { shoppingListId, catalogItemKey: reference.catalogItemKey }
@@ -153,7 +153,7 @@ export async function ensureListItem(
     }
   }
 
-  if (!item) throw new Error('Item not found.');
+  if (!item) throw new NotFoundError('Item not found.');
   let changed = created;
   if (!created) {
     const reopened = item.status !== 'to_buy';
@@ -165,7 +165,7 @@ export async function ensureListItem(
       changed = true;
     }
   }
-  if (changed) await recordItemEvent(repositories, item, 'added', item.source, userId);
+  if (changed) await recordItemEvent(repositories, item, 'added', item.source, userId, at);
 
   return { item, created };
 }
@@ -176,15 +176,21 @@ export async function addListItem(
   shoppingListId: string,
   input: AddListItemInput,
   userId: string,
+  at: Date = new Date(),
 ): Promise<AddListItemResult> {
   await getShoppingListForMember(repositories, shoppingListId, userId);
   const reference = await resolveReference(repositories, shoppingListId, input, userId);
+  // A tap synced late loses to a later change of the same product (ADR-0031).
+  if (await isSupersededAt(repositories, shoppingListId, reference, at)) {
+    throw new SupersededChangeError();
+  }
   const { item, created } = await ensureListItem(
     repositories,
     shoppingListId,
     reference,
     'user',
     userId,
+    at,
   );
   return { item: await serializeWithOverride(repositories, item), created };
 }
@@ -195,14 +201,22 @@ export async function setListItemStatus(
   itemId: string,
   status: ListItemStatus,
   userId: string,
+  now: Date = new Date(),
 ): Promise<SerializedListItem> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
   if (item.status === status) return serializeWithOverride(repositories, item);
+  if (await isSupersededAt(repositories, shoppingListId, item, now)) {
+    throw new SupersededChangeError();
+  }
 
-  const now = new Date();
   const boughtAt = item.lastBoughtAt;
+  // `now` may be an offline tap synced later (ADR-0030): an un-buy counts as
+  // undoing a mistaken buy only when it came after that buy, within the grace.
   const mistakenTap =
-    status === 'to_buy' && boughtAt !== null && now.getTime() - boughtAt.getTime() <= UNBUY_GRACE_MS;
+    status === 'to_buy' &&
+    boughtAt !== null &&
+    now.getTime() >= boughtAt.getTime() &&
+    now.getTime() - boughtAt.getTime() <= UNBUY_GRACE_MS;
   const changes: Pick<ListItem, 'status'> & Partial<Pick<ListItem, 'source' | 'lastBoughtAt'>> = {
     status,
   };
@@ -230,16 +244,16 @@ export async function setListItemStatus(
       { listItemId: item.id, fulfilledAt: IsNull() },
       { fulfilledAt: now },
     );
-    await recordItemEvent(repositories, item, 'bought', item.source, userId);
+    await recordItemEvent(repositories, item, 'bought', item.source, userId, now);
   } else if (mistakenTap) {
     // A mistaken tap: reopen the dish needs that this buy met.
     await repositories.listItemDishRepository.update(
       { listItemId: item.id, fulfilledAt: boughtAt },
       { fulfilledAt: null },
     );
-    await recordItemEvent(repositories, item, 'unbought', item.source, userId);
+    await recordItemEvent(repositories, item, 'unbought', item.source, userId, now);
   } else {
-    await recordItemEvent(repositories, item, 'added', 'user', userId);
+    await recordItemEvent(repositories, item, 'added', 'user', userId, now);
   }
 
   return serializeWithOverride(repositories, item);
@@ -255,11 +269,15 @@ export async function removeListItem(
   shoppingListId: string,
   itemId: string,
   userId: string,
+  at: Date = new Date(),
 ): Promise<void> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
+  if (await isSupersededAt(repositories, shoppingListId, item, at)) {
+    throw new SupersededChangeError();
+  }
   const result = await repositories.listItemRepository.delete({ id: itemId, shoppingListId });
-  if (!result.affected) throw new Error('Item not found.');
+  if (!result.affected) throw new NotFoundError('Item not found.');
   if (item.status === 'to_buy') {
-    await recordItemEvent(repositories, item, 'removed', item.source, userId);
+    await recordItemEvent(repositories, item, 'removed', item.source, userId, at);
   }
 }

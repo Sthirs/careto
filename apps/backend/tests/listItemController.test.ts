@@ -5,6 +5,7 @@
  */
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { QueryFailedError } from 'typeorm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/db/data-source', () => ({
@@ -15,6 +16,7 @@ vi.mock('../src/db/data-source', () => ({
 import { createApp } from '../src/app';
 import { CATALOG_SECTIONS } from '../src/services/catalog/catalogData';
 import { AuthService } from '../src/services/authService';
+import { NotFoundError, SupersededChangeError } from '../src/services/domainErrors';
 import { ListItemService } from '../src/services/listItemService';
 
 const JWT_SECRET = 'change-me-in-real-environments';
@@ -82,7 +84,44 @@ describe('list item override and section order routes (service layer mocked)', (
       .set(auth())
       .send({ status: 'bought' });
     expect(response.status).toBe(200);
-    expect(status).toHaveBeenCalledWith(LIST, ITEM, 'bought', 'u1');
+    expect(status).toHaveBeenCalledWith(LIST, ITEM, 'bought', 'u1', expect.any(Date));
+  });
+
+  it('PATCH /items/:itemId { status } passes the X-Occurred-At time on (ADR-0030)', async () => {
+    const status = vi
+      .spyOn(ListItemService.prototype, 'setListItemStatus')
+      .mockResolvedValue({ id: ITEM } as never);
+    const at = new Date(Date.now() - 3 * 60_000).toISOString();
+    const response = await request(createApp())
+      .patch(`/api/lists/${LIST}/items/${ITEM}`)
+      .set(auth())
+      .set('X-Occurred-At', at)
+      .send({ status: 'bought' });
+    expect(response.status).toBe(200);
+    expect(status).toHaveBeenCalledWith(LIST, ITEM, 'bought', 'u1', new Date(at));
+  });
+
+  it('POST and DELETE /items pass the X-Occurred-At time on', async () => {
+    const add = vi
+      .spyOn(ListItemService.prototype, 'addListItem')
+      .mockResolvedValue({ item: { id: ITEM }, created: true } as never);
+    const remove = vi.spyOn(ListItemService.prototype, 'removeListItem').mockResolvedValue();
+    const at = new Date(Date.now() - 60_000).toISOString();
+
+    const added = await request(createApp())
+      .post(`/api/lists/${LIST}/items`)
+      .set(auth())
+      .set('X-Occurred-At', at)
+      .send({ catalogItemKey: 'milk' });
+    const removed = await request(createApp())
+      .delete(`/api/lists/${LIST}/items/${ITEM}`)
+      .set(auth())
+      .set('X-Occurred-At', at);
+
+    expect(added.status).toBe(201);
+    expect(add).toHaveBeenCalledWith(LIST, { catalogItemKey: 'milk' }, 'u1', new Date(at));
+    expect(removed.status).toBe(204);
+    expect(remove).toHaveBeenCalledWith(LIST, ITEM, 'u1', new Date(at));
   });
 
   it('GET /section-order → 200 { sectionKeys }', async () => {
@@ -94,10 +133,51 @@ describe('list item override and section order routes (service layer mocked)', (
 
   it('GET /section-order → 404 for a non-member', async () => {
     vi.spyOn(ListItemService.prototype, 'getSectionOrder').mockRejectedValue(
-      new Error('List not found or you are not a member.'),
+      new NotFoundError('List not found or you are not a member.'),
     );
     const response = await request(createApp()).get(`/api/lists/${LIST}/section-order`).set(auth());
     expect(response.status).toBe(404);
+  });
+
+  it('PATCH /items/:itemId { status } → 409 when a later change overtook it (ADR-0031)', async () => {
+    vi.spyOn(ListItemService.prototype, 'setListItemStatus').mockRejectedValue(
+      new SupersededChangeError(),
+    );
+    const response = await request(createApp())
+      .patch(`/api/lists/${LIST}/items/${ITEM}`)
+      .set(auth())
+      .send({ status: 'bought' });
+    expect(response.status).toBe(409);
+  });
+
+  it('POST /items → 500, not 400, when something unexpected fails, so the outbox retries', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(ListItemService.prototype, 'addListItem').mockRejectedValue(
+      new Error('Connection terminated unexpectedly'),
+    );
+    const response = await request(createApp())
+      .post(`/api/lists/${LIST}/items`)
+      .set(auth())
+      .send({ catalogItemKey: 'milk' });
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ message: 'Unable to add item.' });
+  });
+
+  it.each([
+    ['23503', 404],
+    ['22P02', 400],
+    ['23514', 400],
+    ['40P01', 500],
+  ])('POST /items → database error %s answers %i, so a change that always fails is dropped', async (code, status) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(ListItemService.prototype, 'addListItem').mockRejectedValue(
+      new QueryFailedError('INSERT', [], Object.assign(new Error('db'), { code })),
+    );
+    const response = await request(createApp())
+      .post(`/api/lists/${LIST}/items`)
+      .set(auth())
+      .send({ catalogItemKey: 'milk' });
+    expect(response.status).toBe(status);
   });
 
   it('PUT /section-order → 200 and passes the order on', async () => {
