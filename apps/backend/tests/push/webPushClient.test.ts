@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { envMock } = vi.hoisted(() => ({
   envMock: {
-    // Push disabled keeps `webpush.setVapidDetails` from running at import
+    // Push disabled keeps `setVapidDetails` from running at import
     // time; it does not gate `sendToSubscription` itself.
     pushEnabled: false,
     pushEndpointExtraHostSuffixes: [] as string[],
@@ -25,10 +25,8 @@ const { sendNotificationMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('web-push', () => ({
-  default: {
-    setVapidDetails: vi.fn(),
-    sendNotification: sendNotificationMock,
-  },
+  setVapidDetails: vi.fn(),
+  sendNotification: sendNotificationMock,
 }));
 
 import { sendToSubscription } from '../../src/services/push/webPushClient';

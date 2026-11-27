@@ -1,10 +1,10 @@
-import webpush from 'web-push';
+import { sendNotification, setVapidDetails } from 'web-push';
 
 import { env } from '../../config/env';
 import { validatePushEndpoint } from './endpointValidation';
 
 if (env.pushEnabled) {
-  webpush.setVapidDetails(
+  setVapidDetails(
     env.VAPID_SUBJECT,
     env.VAPID_PUBLIC_KEY as string,
     env.VAPID_PRIVATE_KEY as string,
@@ -39,7 +39,7 @@ export const sendToSubscription = async (
   }
 
   try {
-    await webpush.sendNotification(
+    await sendNotification(
       {
         endpoint: subscription.endpoint,
         keys: { p256dh: subscription.p256dh, auth: subscription.auth },
