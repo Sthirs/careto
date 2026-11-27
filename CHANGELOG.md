@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/Sthirs/careto/compare/v1.4.2...v1.4.3) (2026-11-27)
+
+
+### Bug Fixes
+
+* **deps:** update dependency web-push to v4 ([#44](https://github.com/Sthirs/careto/issues/44)) ([7a4f3fb](https://github.com/Sthirs/careto/commit/7a4f3fb2ed18c14bac9693a05c850a664acdfca2))
+
 ## [1.4.2](https://github.com/Sthirs/careto/compare/v1.4.1...v1.4.2) (2026-11-20)
 
 
