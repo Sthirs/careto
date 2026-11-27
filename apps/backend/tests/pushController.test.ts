@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // createApp() eagerly wires every route module, including the invitation
 // service that imports `webPushClient.ts`, which calls
-// `webpush.setVapidDetails` at import time whenever `pushEnabled` is true —
+// `setVapidDetails` at import time whenever `pushEnabled` is true —
 // so these have to be well-formed VAPID keys, not arbitrary test strings.
 // Generated fresh each run rather than hardcoded so no real key material
 // ever sits in the repo (gitleaks flags a hardcoded pair as a secret). A
