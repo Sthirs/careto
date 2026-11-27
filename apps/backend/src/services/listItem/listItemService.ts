@@ -20,8 +20,9 @@ export class ListItemService {
     shoppingListId: string,
     input: listItemMutations.AddListItemInput,
     userId: string,
+    at?: Date,
   ) {
-    return listItemMutations.addListItem(this.repositories, shoppingListId, input, userId);
+    return listItemMutations.addListItem(this.repositories, shoppingListId, input, userId, at);
   }
 
   async setListItemStatus(
@@ -29,6 +30,7 @@ export class ListItemService {
     itemId: string,
     status: ListItemStatus,
     userId: string,
+    at?: Date,
   ) {
     return listItemMutations.setListItemStatus(
       this.repositories,
@@ -36,11 +38,18 @@ export class ListItemService {
       itemId,
       status,
       userId,
+      at,
     );
   }
 
-  async removeListItem(shoppingListId: string, itemId: string, userId: string) {
-    return listItemMutations.removeListItem(this.repositories, shoppingListId, itemId, userId);
+  async removeListItem(shoppingListId: string, itemId: string, userId: string, at?: Date) {
+    return listItemMutations.removeListItem(
+      this.repositories,
+      shoppingListId,
+      itemId,
+      userId,
+      at,
+    );
   }
 
   async setListItemOverride(

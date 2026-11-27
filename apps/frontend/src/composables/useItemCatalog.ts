@@ -1,6 +1,8 @@
 import { ref, type Ref } from 'vue';
 
 import { api } from '@/lib/api';
+import { readCatalogSnapshot, saveCatalogSnapshot } from '@/lib/offline/listSnapshot';
+import { isTransientFailure } from '@/lib/offline/networkErrors';
 import type { Catalog } from '@/types/listItem';
 
 // The catalog is the same for every list and only changes on deploy, so it is
@@ -17,12 +19,18 @@ export const resetItemCatalogCache = (): void => {
 export function useItemCatalog(): { catalog: Ref<Catalog | null>; loadCatalog: () => Promise<void> } {
   const loadCatalog = async () => {
     if (catalog.value) return;
-    pending ??= api.get<Catalog>('/catalog').then(({ data }) => data);
+    pending ??= api.get<Catalog>('/catalog').then(({ data }) => {
+      saveCatalogSnapshot(data);
+      return data;
+    });
     try {
       catalog.value = await pending;
     } catch (error: unknown) {
       pending = null;
-      throw error;
+      // Offline: the copy saved on the last load (ADR-0030).
+      const copy = isTransientFailure(error) ? readCatalogSnapshot() : null;
+      if (!copy) throw error;
+      catalog.value = copy;
     }
   };
 

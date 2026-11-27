@@ -43,7 +43,12 @@ export default defineConfig({
         // vite-plugin-pwa's injectManifest build runs its own esbuild pass
         // over src/sw.ts; it does not go through the app's own Vite/Vitest
         // pipeline, so this glob only needs to match what sw.ts precaches.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // Plus the Latin faces of the UI font, so an offline reload keeps
+        // it (ADR-0030); the other subsets are not worth precaching.
+        globPatterns: [
+          '**/*.{js,css,html,svg,png,ico,webmanifest}',
+          '**/nunito-latin-*wght-normal-*.woff2',
+        ],
       },
       includeAssets: [
         'careto.svg',

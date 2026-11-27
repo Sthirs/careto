@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthedRequest, AuthenticatedRequest } from '../../middleware/auth';
 import { getCatalog as loadCatalog } from '../../services/catalogService';
 import { parseAddItemBody, parseItemUpdateBody } from './listItemBodies';
+import { occurredAtOf } from './occurredAt';
 import { listItemService } from './listItemServiceInstance';
 
 /** Membership and lookup failures are 404s, like the rest of the list API. */
@@ -46,6 +47,7 @@ export const addItem = async (
       request.params.id as string,
       parsed.value,
       auth.userId,
+      occurredAtOf(request),
     );
     response.status(created ? 201 : 200).json({ item });
   } catch (error: unknown) {
@@ -71,7 +73,13 @@ export const updateItem = async (
     const update = parsed.value;
     const item =
       'status' in update
-        ? await listItemService.setListItemStatus(listId, itemId, update.status, auth.userId)
+        ? await listItemService.setListItemStatus(
+            listId,
+            itemId,
+            update.status,
+            auth.userId,
+            occurredAtOf(request),
+          )
         : await listItemService.setListItemOverride(listId, itemId, update, auth.userId);
     response.json({ item });
   } catch (error: unknown) {
@@ -89,6 +97,7 @@ export const removeItem = async (
       request.params.id as string,
       request.params.itemId as string,
       auth.userId,
+      occurredAtOf(request),
     );
     response.status(204).end();
   } catch (error: unknown) {

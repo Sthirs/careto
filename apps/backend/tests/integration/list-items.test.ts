@@ -93,6 +93,32 @@ describe('list items API', () => {
     expect((await getItems(second.owner.token, second.shoppingListId)).body.customItems).toEqual([]);
   });
 
+  it('dates a synced offline change at the time of the tap (ADR-0030)', async () => {
+    const { shoppingListId, owner } = await createSoloShoppingList('items-offline');
+    const added = await addItem(owner.token, shoppingListId, { catalogItemKey: 'milk' });
+    const itemPath = `${itemsPath(shoppingListId)}/${added.body.item.id}`;
+    const patch = (status: string, occurredAt: string) =>
+      createJsonRequest<{ item: Item }>(itemPath, {
+        method: 'PATCH',
+        headers: { ...bearer(owner.token), 'X-Occurred-At': occurredAt },
+        body: JSON.stringify({ status }),
+      });
+
+    const tappedAt = new Date(Date.now() - 4 * 60_000).toISOString();
+    const bought = await patch('bought', tappedAt);
+    expect(bought.status).toBe(200);
+    expect(bought.body.item.lastBoughtAt).toBe(tappedAt);
+
+    // A clock ahead of the server never dates a change in the future.
+    await patch('to_buy', new Date().toISOString());
+    const before = Date.now();
+    const future = await patch('bought', new Date(Date.now() + 3_600_000).toISOString());
+    expect(future.status).toBe(200);
+    const recorded = new Date(future.body.item.lastBoughtAt as string).getTime();
+    expect(recorded).toBeGreaterThanOrEqual(before - 5_000);
+    expect(recorded).toBeLessThanOrEqual(Date.now() + 5_000);
+  });
+
   it('validates the add body', async () => {
     const { shoppingListId, owner } = await createSoloShoppingList('items-invalid');
 

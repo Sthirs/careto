@@ -116,6 +116,11 @@ export const it = {
     fromDish: 'Per un piatto',
     fromPlanner: 'Aggiunto dal pianificatore automatico',
     moreOptionsAria: 'Altre opzioni per {name}',
+    syncRejected: 'Alcune modifiche non sono state salvate, quindi la lista è stata ricaricata.',
+    needsConnection: 'Questa modifica richiede una connessione. Riprova quando sei di nuovo online.',
+    offline: 'Sei offline. Le modifiche sono salvate su questo dispositivo e verranno sincronizzate quando tornerai online.',
+    unreachable: 'Careto non è raggiungibile. Le modifiche sono salvate su questo dispositivo e verranno sincronizzate appena possibile.',
+    pendingChanges: '{count} modifica da sincronizzare | {count} modifiche da sincronizzare',
   },
 
   itemMenu: {

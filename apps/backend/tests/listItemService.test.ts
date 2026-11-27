@@ -242,6 +242,48 @@ describe('setListItemStatus', () => {
     repos.listItemRepository.findOne.mockResolvedValue(null);
     await expect(setListItemStatus(r(), 'list-1', 'x', 'bought', 'u1')).rejects.toThrow('Item not found.');
   });
+
+  it('dates a synced offline buy at the time of the tap (ADR-0030)', async () => {
+    const tappedAt = new Date('2026-11-20T10:00:00Z');
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+
+    const item = await setListItemStatus(r(), 'list-1', 'item-1', 'bought', 'u1', tappedAt);
+
+    expect(item.lastBoughtAt).toBe('2026-11-20T10:00:00.000Z');
+    expect(repos.listItemDishRepository.update).toHaveBeenCalledWith(expect.anything(), { fulfilledAt: tappedAt });
+    expect(repos.listItemEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'bought', at: tappedAt }),
+    );
+  });
+
+  it('undoes a mistaken buy when the un-buy tap was within the grace, however late it syncs', async () => {
+    const boughtAt = new Date('2026-11-20T10:00:00Z');
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'dish', lastBoughtAt: boughtAt }),
+    );
+
+    const item = await setListItemStatus(
+      r(), 'list-1', 'item-1', 'to_buy', 'u1', new Date('2026-11-20T10:02:00Z'),
+    );
+
+    expect(item.source).toBe('dish');
+    expect(repos.listItemEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'unbought' }),
+    );
+  });
+
+  it('never treats an un-buy tapped before the buy as a mistaken tap', async () => {
+    repos.listItemRepository.findOne.mockResolvedValue(
+      row({ status: 'bought', source: 'dish', lastBoughtAt: new Date('2026-11-20T10:05:00Z') }),
+    );
+
+    const item = await setListItemStatus(
+      r(), 'list-1', 'item-1', 'to_buy', 'u1', new Date('2026-11-20T10:04:00Z'),
+    );
+
+    expect(repos.listItemDishRepository.update).not.toHaveBeenCalled();
+    expect(item.source).toBe('user');
+  });
 });
 
 describe('removeListItem', () => {
@@ -256,6 +298,16 @@ describe('removeListItem', () => {
     repos.listItemRepository.findOne.mockResolvedValue(null);
     await expect(removeListItem(r(), 'list-1', 'item-1', 'u1')).rejects.toThrow('Item not found.');
     expect(repos.listItemRepository.delete).not.toHaveBeenCalled();
+  });
+
+  it('logs a removal at the time of the tap', async () => {
+    const tappedAt = new Date('2026-11-20T10:00:00Z');
+    repos.listItemRepository.findOne.mockResolvedValue(row({}));
+    repos.listItemRepository.delete.mockResolvedValue({ affected: 1 });
+    await removeListItem(r(), 'list-1', 'item-1', 'u1', tappedAt);
+    expect(repos.listItemEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'removed', at: tappedAt }),
+    );
   });
 
   it('404s when nothing was deleted', async () => {
@@ -421,6 +473,7 @@ describe('item history (ADR-0027)', () => {
     kind,
     source,
     userId,
+    at: expect.any(Date),
   });
   const events = () => repos.listItemEventRepository.insert.mock.calls.map(([logged]) => logged);
 

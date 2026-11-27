@@ -12,6 +12,14 @@ import {
   tryRestoreSession as restoreSession,
 } from '@/lib/sessionRefresh';
 import { normalizeLocale, setAppLocale, type Locale } from '@/i18n';
+import {
+  clearListSnapshots,
+  clearUserSnapshot,
+  readUserSnapshot,
+  saveUserSnapshot,
+} from '@/lib/offline/listSnapshot';
+import { isTransientFailure } from '@/lib/offline/networkErrors';
+import { clearOutbox } from '@/lib/offline/outbox';
 import { removePushSubscription } from '@/lib/push';
 import type { AuthUser } from '@/types/auth';
 
@@ -44,6 +52,7 @@ export const useAuthStore = defineStore('auth', {
         );
         this.setToken(data.token);
         this.user = data.user;
+        saveUserSnapshot(data.user);
         applyUserLanguage(this.user);
       } finally {
         this.isLoading = false;
@@ -58,6 +67,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const { data } = await api.get<{ user: AuthUser }>('/auth/me');
         this.user = data.user;
+        saveUserSnapshot(data.user);
         applyUserLanguage(this.user);
         return data.user;
       } catch (err: unknown) {
@@ -68,9 +78,16 @@ export const useAuthStore = defineStore('auth', {
           // gone too. Network errors and 5xx deliberately keep the session.
           if (status === 401 || status === 403) {
             this.clearSession();
+            return null;
           }
         }
-        return null;
+        // Offline (ADR-0030): carry on as the user last seen on this device,
+        // so the router and the offline list copies know who is signed in.
+        const copy = !this.user && isTransientFailure(err) ? readUserSnapshot() : null;
+        if (!copy) return null;
+        this.user = copy;
+        applyUserLanguage(copy);
+        return copy;
       }
     },
     /**
@@ -102,6 +119,12 @@ export const useAuthStore = defineStore('auth', {
       // the next person uses this device, or they would receive this user's
       // notifications.
       await removePushSubscription();
+      // ADR-0030: the next person on this device must not see or send this
+      // user's offline copies and waiting changes.
+      if (this.user) {
+        clearOutbox(this.user.id);
+        clearListSnapshots(this.user.id);
+      }
       this.clearSession();
     },
     /**
@@ -113,6 +136,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = '';
       this.user = null;
       clearAccessToken();
+      clearUserSnapshot();
     },
     /**
      * Cold-boot restore from the refresh cookie when localStorage has no access
@@ -126,6 +150,7 @@ export const useAuthStore = defineStore('auth', {
 
       if (session.user) {
         this.user = session.user;
+        saveUserSnapshot(session.user);
         applyUserLanguage(this.user);
         return this.user;
       }

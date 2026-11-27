@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { AxiosError } from 'axios';
 import { createPinia, setActivePinia } from 'pinia';
 
 import ShoppingListDetailView from '@/views/ShoppingListDetailView.vue';
 import { resetItemCatalogCache } from '@/composables/useItemCatalog';
 import { i18n } from '@/i18n';
 import { api } from '@/lib/api';
+import { resetOutbox, startOutboxSync } from '@/lib/offline/outbox';
 import type { ListItem } from '@/types/listItem';
 
 const CATALOG = {
@@ -63,6 +65,9 @@ const tileNames = (wrapper: Awaited<ReturnType<typeof mountView>>, tone: string)
 
 describe('ShoppingListDetailView items', () => {
   beforeEach(() => {
+    resetOutbox();
+    localStorage.clear();
+    localStorage.setItem('careto.auth.token', 'test-token');
     setActivePinia(createPinia());
     vi.clearAllMocks();
     resetItemCatalogCache();
@@ -130,12 +135,12 @@ describe('ShoppingListDetailView items', () => {
 
     await wrapper.find('button[aria-label="Mark Milk as bought"]').trigger('click');
     await flushPromises();
-    expect(api.patch).toHaveBeenCalledWith('/lists/list-1/items/i2', { status: 'bought' });
+    expect(api.patch).toHaveBeenCalledWith('/lists/list-1/items/i2', { status: 'bought' }, expect.objectContaining({ headers: expect.any(Object) }));
     expect(tileNames(wrapper, 'bought')).toContain('Milk');
 
     await wrapper.find('button[aria-label="Add Apricot back to the list"]').trigger('click');
     await flushPromises();
-    expect(api.patch).toHaveBeenCalledWith('/lists/list-1/items/i3', { status: 'to_buy' });
+    expect(api.patch).toHaveBeenCalledWith('/lists/list-1/items/i3', { status: 'to_buy' }, expect.objectContaining({ headers: expect.any(Object) }));
     expect(tileNames(wrapper, 'to-buy')).toContain('Apricot');
   });
 
@@ -152,7 +157,7 @@ describe('ShoppingListDetailView items', () => {
 
     await wrapper.find('button[aria-label="Add Apricot"]').trigger('click');
     await flushPromises();
-    expect(api.post).toHaveBeenCalledWith('/lists/list-1/items', { catalogItemKey: 'apricot' });
+    expect(api.post).toHaveBeenCalledWith('/lists/list-1/items', { catalogItemKey: 'apricot' }, expect.objectContaining({ headers: expect.any(Object) }));
     expect((wrapper.find('#item-search').element as HTMLInputElement).value).toBe('');
     expect(tileNames(wrapper, 'to-buy')).toContain('Apricot');
   });
@@ -168,7 +173,7 @@ describe('ShoppingListDetailView items', () => {
     await wrapper.find('button[aria-label="Add Oat drink as a custom item"]').trigger('click');
     await flushPromises();
 
-    expect(api.post).toHaveBeenCalledWith('/lists/list-1/items', { customName: 'Oat drink' });
+    expect(api.post).toHaveBeenCalledWith('/lists/list-1/items', { customName: 'Oat drink' }, expect.objectContaining({ headers: expect.any(Object) }));
     expect(tileNames(wrapper, 'to-buy')).toContain('Oat drink');
   });
 
@@ -179,7 +184,7 @@ describe('ShoppingListDetailView items', () => {
     await wrapper.find('button[aria-label="Mark Milk as bought"]').trigger('keydown', { key: 'Delete' });
     await flushPromises();
 
-    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i2');
+    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i2', expect.objectContaining({ headers: expect.any(Object) }));
     expect(tileNames(wrapper, 'to-buy')).not.toContain('Milk');
   });
 
@@ -199,19 +204,72 @@ describe('ShoppingListDetailView items', () => {
     expect(api.delete).not.toHaveBeenCalled();
 
     await swipe(0, -200);
-    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i2');
+    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i2', expect.objectContaining({ headers: expect.any(Object) }));
     expect(tileNames(wrapper, 'to-buy')).toEqual(['Pineapple', "Nonna's sauce"]);
     width.mockRestore();
   });
 
-  it('restores the item and shows an error when the update fails', async () => {
-    vi.mocked(api.patch).mockRejectedValue(new Error('offline'));
+  it('keeps a change made offline and says it will sync (ADR-0030)', async () => {
+    vi.mocked(api.patch).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+    const wrapper = await mountView();
+
+    await wrapper.find('button[aria-label="Mark Milk as bought"]').trigger('click');
+    await flushPromises();
+
+    expect(tileNames(wrapper, 'bought')).toContain('Milk');
+    expect(wrapper.find('[data-testid="sync-status"]').text()).toContain('Changes are saved on this device');
+    expect(wrapper.find('[data-testid="sync-pending"]').text()).toBe('1 change waiting to sync');
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+  });
+
+  it('opens from the device copy when offline, with the changes still waiting', async () => {
+    const network = new AxiosError('Network Error', 'ERR_NETWORK');
+    localStorage.setItem(
+      'careto.offline.u1.list.list-1',
+      JSON.stringify({
+        shoppingList: { id: 'list-1', name: 'Home', imageUrl: null, memberCount: 1, members: [], pendingInvitations: [] },
+        items: itemsPayload,
+      }),
+    );
+    localStorage.setItem('careto.offline.catalog', JSON.stringify(CATALOG));
+    localStorage.setItem(
+      'careto.outbox.u1',
+      JSON.stringify([
+        { id: 'o1', listId: 'list-1', occurredAt: '2026-11-27T10:00:00.000Z', kind: 'status', itemId: 'i2', status: 'bought' },
+      ]),
+    );
+    vi.mocked(api.get).mockRejectedValue(network);
+    vi.mocked(api.patch).mockRejectedValue(network);
+    startOutboxSync('u1');
+
+    const wrapper = await mountView();
+
+    expect(wrapper.find('h1').text()).toBe('Home');
+    expect(tileNames(wrapper, 'to-buy')).toEqual(['Pineapple', "Nonna's sauce"]);
+    expect(tileNames(wrapper, 'bought')).toContain('Milk');
+    expect(wrapper.find('[data-testid="sync-status"]').exists()).toBe(true);
+
+    // Added while offline: it shows at once and waits in the outbox.
+    await wrapper.find('#item-search').setValue('apri');
+    await wrapper.find('button[aria-label="Add Apricot"]').trigger('click');
+    await flushPromises();
+    expect(tileNames(wrapper, 'to-buy')).toContain('Apricot');
+    expect(JSON.parse(localStorage.getItem('careto.outbox.u1') ?? '[]')).toHaveLength(2);
+  });
+
+  it('undoes a change the server refuses and says so', async () => {
+    vi.mocked(api.patch).mockRejectedValue(
+      new AxiosError('bad', 'ERR_BAD_REQUEST', undefined, undefined, { status: 400 } as never),
+    );
     const wrapper = await mountView();
 
     await wrapper.find('button[aria-label="Mark Milk as bought"]').trigger('click');
     await flushPromises();
 
     expect(tileNames(wrapper, 'to-buy')).toContain('Milk');
-    expect(wrapper.find('[role="alert"]').text()).toBe('We could not update the list. Try again.');
+    expect(wrapper.find('[role="alert"]').text()).toBe(
+      'Some changes could not be saved, so the list was reloaded.',
+    );
+    expect(wrapper.find('[data-testid="sync-status"]').exists()).toBe(false);
   });
 });

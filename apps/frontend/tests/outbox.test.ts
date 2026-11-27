@@ -1,0 +1,178 @@
+import { AxiosError } from 'axios';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/api', () => ({
+  api: { post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+}));
+
+import { api } from '@/lib/api';
+import {
+  clearOutbox,
+  enqueue,
+  flush,
+  onOutboxEvent,
+  outboxSettled,
+  pendingOps,
+  resetOutbox,
+  RETRY_BASE_MS,
+  startOutboxSync,
+  syncState,
+  type OutboxEvent,
+} from '@/lib/offline/outbox';
+import type { OutboxOp } from '@/lib/offline/outboxOps';
+import type { ListItem } from '@/types/listItem';
+
+const KEY = 'careto.outbox.u1';
+const networkError = () => new AxiosError('Network Error', 'ERR_NETWORK');
+const httpError = (status: number) =>
+  new AxiosError('failed', 'ERR_BAD_REQUEST', undefined, undefined, { status } as never);
+const serverItem = (id: string): ListItem =>
+  ({ id, status: 'to_buy', catalogItemKey: 'milk' }) as ListItem;
+const stored = () => JSON.parse(localStorage.getItem(KEY) ?? 'null') as OutboxOp[] | null;
+
+let events: OutboxEvent[];
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.clearAllMocks();
+  localStorage.clear();
+  localStorage.setItem('careto.auth.token', 'token');
+  resetOutbox();
+  startOutboxSync('u1');
+  events = [];
+  onOutboxEvent((event) => events.push(event));
+});
+
+afterEach(() => {
+  resetOutbox();
+  vi.useRealTimers();
+});
+
+describe('outbox (ADR-0030)', () => {
+  it('sends ops in order with the time of the tap, and empties itself', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { item: serverItem('i9') } });
+    vi.mocked(api.patch).mockResolvedValue({ data: { item: serverItem('i9') } });
+
+    const add = enqueue({ kind: 'add', listId: 'l1', tempItemId: 'local:a', input: { catalogItemKey: 'milk' } });
+    enqueue({ kind: 'status', listId: 'l1', itemId: 'local:a', status: 'bought' });
+    await outboxSettled();
+
+    expect(api.post).toHaveBeenCalledWith('/lists/l1/items', { catalogItemKey: 'milk' }, {
+      headers: { 'X-Occurred-At': add.occurredAt },
+      timeout: 15_000,
+    });
+    // The add's real id replaces the temporary one in the later op.
+    expect(api.patch).toHaveBeenCalledWith('/lists/l1/items/i9', { status: 'bought' }, expect.any(Object));
+    expect(vi.mocked(api.post).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(api.patch).mock.invocationCallOrder[0],
+    );
+    expect(pendingOps.value).toEqual([]);
+    expect(stored()).toEqual([]);
+    expect(events.map((event) => event.type)).toEqual(['synced', 'synced']);
+    expect(syncState.value).toBe('idle');
+  });
+
+  it('keeps ops through a network failure and retries with backoff', async () => {
+    vi.mocked(api.delete).mockRejectedValueOnce(networkError()).mockResolvedValue({ data: {} });
+
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    await outboxSettled();
+
+    expect(syncState.value).toBe('waiting');
+    expect(stored()).toHaveLength(1);
+    expect(events).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(RETRY_BASE_MS);
+    await outboxSettled();
+
+    expect(api.delete).toHaveBeenCalledTimes(2);
+    expect(stored()).toEqual([]);
+    expect(syncState.value).toBe('idle');
+  });
+
+  it('waits without trying while the browser is offline, and sends on reconnect', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(api.delete).mockResolvedValue({ data: {} });
+
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    await outboxSettled();
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(syncState.value).toBe('waiting');
+
+    onLine.mockReturnValue(true);
+    window.dispatchEvent(new Event('online'));
+    await outboxSettled();
+    expect(api.delete).toHaveBeenCalledTimes(1);
+    expect(pendingOps.value).toEqual([]);
+    onLine.mockRestore();
+  });
+
+  it('survives a reload: the saved ops are picked up and sent', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify([{ id: 'x', listId: 'l1', occurredAt: '2026-11-27T10:00:00.000Z', kind: 'remove', itemId: 'i1' }]),
+    );
+    vi.mocked(api.delete).mockResolvedValue({ data: {} });
+    resetOutbox();
+
+    startOutboxSync('u1');
+    await outboxSettled();
+
+    expect(api.delete).toHaveBeenCalledWith('/lists/l1/items/i1', {
+      headers: { 'X-Occurred-At': '2026-11-27T10:00:00.000Z' },
+      timeout: 15_000,
+    });
+  });
+
+  it('counts a removal of an item already gone as done', async () => {
+    vi.mocked(api.delete).mockRejectedValue(httpError(404));
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    await outboxSettled();
+    expect(pendingOps.value).toEqual([]);
+    expect(events.map((event) => event.type)).toEqual(['synced']);
+  });
+
+  it('drops a refused op, with the later ops of its item', async () => {
+    vi.mocked(api.post).mockRejectedValue(httpError(400));
+    vi.mocked(api.delete).mockResolvedValue({ data: {} });
+
+    enqueue({ kind: 'add', listId: 'l1', tempItemId: 'local:a', input: { customName: 'x' } });
+    enqueue({ kind: 'status', listId: 'l1', itemId: 'local:a', status: 'bought' });
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i2' });
+    await outboxSettled();
+
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.delete).toHaveBeenCalledTimes(1);
+    expect(events).toEqual([
+      expect.objectContaining({ type: 'rejected', status: 400 }),
+      expect.objectContaining({ type: 'synced' }),
+    ]);
+    expect(pendingOps.value).toEqual([]);
+  });
+
+  it('keeps everything while signed out, and a 401 waits rather than drops', async () => {
+    localStorage.removeItem('careto.auth.token');
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    await outboxSettled();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    localStorage.setItem('careto.auth.token', 'token');
+    vi.mocked(api.delete).mockRejectedValue(httpError(401));
+    await flush();
+    expect(syncState.value).toBe('waiting');
+    expect(stored()).toHaveLength(1);
+  });
+
+  it('keeps each user apart and clears on sign-out', () => {
+    enqueue({ kind: 'remove', listId: 'l1', itemId: 'i1' });
+    startOutboxSync('u2');
+    expect(pendingOps.value).toEqual([]);
+
+    startOutboxSync('u1');
+    expect(pendingOps.value).toHaveLength(1);
+
+    clearOutbox('u1');
+    expect(pendingOps.value).toEqual([]);
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+});

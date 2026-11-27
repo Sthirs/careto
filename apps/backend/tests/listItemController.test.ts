@@ -82,7 +82,44 @@ describe('list item override and section order routes (service layer mocked)', (
       .set(auth())
       .send({ status: 'bought' });
     expect(response.status).toBe(200);
-    expect(status).toHaveBeenCalledWith(LIST, ITEM, 'bought', 'u1');
+    expect(status).toHaveBeenCalledWith(LIST, ITEM, 'bought', 'u1', expect.any(Date));
+  });
+
+  it('PATCH /items/:itemId { status } passes the X-Occurred-At time on (ADR-0030)', async () => {
+    const status = vi
+      .spyOn(ListItemService.prototype, 'setListItemStatus')
+      .mockResolvedValue({ id: ITEM } as never);
+    const at = new Date(Date.now() - 3 * 60_000).toISOString();
+    const response = await request(createApp())
+      .patch(`/api/lists/${LIST}/items/${ITEM}`)
+      .set(auth())
+      .set('X-Occurred-At', at)
+      .send({ status: 'bought' });
+    expect(response.status).toBe(200);
+    expect(status).toHaveBeenCalledWith(LIST, ITEM, 'bought', 'u1', new Date(at));
+  });
+
+  it('POST and DELETE /items pass the X-Occurred-At time on', async () => {
+    const add = vi
+      .spyOn(ListItemService.prototype, 'addListItem')
+      .mockResolvedValue({ item: { id: ITEM }, created: true } as never);
+    const remove = vi.spyOn(ListItemService.prototype, 'removeListItem').mockResolvedValue();
+    const at = new Date(Date.now() - 60_000).toISOString();
+
+    const added = await request(createApp())
+      .post(`/api/lists/${LIST}/items`)
+      .set(auth())
+      .set('X-Occurred-At', at)
+      .send({ catalogItemKey: 'milk' });
+    const removed = await request(createApp())
+      .delete(`/api/lists/${LIST}/items/${ITEM}`)
+      .set(auth())
+      .set('X-Occurred-At', at);
+
+    expect(added.status).toBe(201);
+    expect(add).toHaveBeenCalledWith(LIST, { catalogItemKey: 'milk' }, 'u1', new Date(at));
+    expect(removed.status).toBe(204);
+    expect(remove).toHaveBeenCalledWith(LIST, ITEM, 'u1', new Date(at));
   });
 
   it('GET /section-order → 200 { sectionKeys }', async () => {

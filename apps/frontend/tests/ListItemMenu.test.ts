@@ -6,6 +6,7 @@ import ShoppingListDetailView from '@/views/ShoppingListDetailView.vue';
 import { resetItemCatalogCache } from '@/composables/useItemCatalog';
 import { i18n } from '@/i18n';
 import { api } from '@/lib/api';
+import { resetOutbox } from '@/lib/offline/outbox';
 import type { ListItem } from '@/types/listItem';
 
 const route = vi.hoisted(() => ({ value: null as unknown as { query: Record<string, string> } }));
@@ -94,6 +95,9 @@ const openMenu = async (name: string) => {
 
 describe('list item ⋮ menu', () => {
   beforeEach(() => {
+    resetOutbox();
+    localStorage.clear();
+    localStorage.setItem('careto.auth.token', 'test-token');
     setActivePinia(createPinia());
     vi.clearAllMocks();
     resetItemCatalogCache();
@@ -151,7 +155,7 @@ describe('list item ⋮ menu', () => {
     button('Remove from list').click();
     await flushPromises();
 
-    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i1');
+    expect(api.delete).toHaveBeenCalledWith('/lists/list-1/items/i1', expect.objectContaining({ headers: expect.any(Object) }));
     expect(toBuyNames()).toEqual(['Kombucha']);
     expect(route.value.query.overlay).toBeUndefined();
   });

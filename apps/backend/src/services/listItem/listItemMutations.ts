@@ -114,7 +114,7 @@ export async function resolveReference(
  * duplicated. `source` says why the item is to buy now (ADR-0024): a bought
  * item takes the caller's source, and a hand add claims a to-buy item. Each
  * add that puts the item to buy, or claims it, is logged (ADR-0027). A null
- * `userId` is the system adding it.
+ * `userId` is the system adding it. `at` is when the add happened (ADR-0030).
  */
 export async function ensureListItem(
   repositories: ListItemRepositories,
@@ -122,6 +122,7 @@ export async function ensureListItem(
   reference: ItemReference,
   source: ListItemSource,
   userId: string | null,
+  at: Date = new Date(),
 ): Promise<{ item: ListItem; created: boolean }> {
   const where = reference.catalogItemKey
     ? { shoppingListId, catalogItemKey: reference.catalogItemKey }
@@ -165,7 +166,7 @@ export async function ensureListItem(
       changed = true;
     }
   }
-  if (changed) await recordItemEvent(repositories, item, 'added', item.source, userId);
+  if (changed) await recordItemEvent(repositories, item, 'added', item.source, userId, at);
 
   return { item, created };
 }
@@ -176,6 +177,7 @@ export async function addListItem(
   shoppingListId: string,
   input: AddListItemInput,
   userId: string,
+  at: Date = new Date(),
 ): Promise<AddListItemResult> {
   await getShoppingListForMember(repositories, shoppingListId, userId);
   const reference = await resolveReference(repositories, shoppingListId, input, userId);
@@ -185,6 +187,7 @@ export async function addListItem(
     reference,
     'user',
     userId,
+    at,
   );
   return { item: await serializeWithOverride(repositories, item), created };
 }
@@ -195,14 +198,19 @@ export async function setListItemStatus(
   itemId: string,
   status: ListItemStatus,
   userId: string,
+  now: Date = new Date(),
 ): Promise<SerializedListItem> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
   if (item.status === status) return serializeWithOverride(repositories, item);
 
-  const now = new Date();
   const boughtAt = item.lastBoughtAt;
+  // `now` may be an offline tap synced later (ADR-0030): an un-buy counts as
+  // undoing a mistaken buy only when it came after that buy, within the grace.
   const mistakenTap =
-    status === 'to_buy' && boughtAt !== null && now.getTime() - boughtAt.getTime() <= UNBUY_GRACE_MS;
+    status === 'to_buy' &&
+    boughtAt !== null &&
+    now.getTime() >= boughtAt.getTime() &&
+    now.getTime() - boughtAt.getTime() <= UNBUY_GRACE_MS;
   const changes: Pick<ListItem, 'status'> & Partial<Pick<ListItem, 'source' | 'lastBoughtAt'>> = {
     status,
   };
@@ -230,16 +238,16 @@ export async function setListItemStatus(
       { listItemId: item.id, fulfilledAt: IsNull() },
       { fulfilledAt: now },
     );
-    await recordItemEvent(repositories, item, 'bought', item.source, userId);
+    await recordItemEvent(repositories, item, 'bought', item.source, userId, now);
   } else if (mistakenTap) {
     // A mistaken tap: reopen the dish needs that this buy met.
     await repositories.listItemDishRepository.update(
       { listItemId: item.id, fulfilledAt: boughtAt },
       { fulfilledAt: null },
     );
-    await recordItemEvent(repositories, item, 'unbought', item.source, userId);
+    await recordItemEvent(repositories, item, 'unbought', item.source, userId, now);
   } else {
-    await recordItemEvent(repositories, item, 'added', 'user', userId);
+    await recordItemEvent(repositories, item, 'added', 'user', userId, now);
   }
 
   return serializeWithOverride(repositories, item);
@@ -255,11 +263,12 @@ export async function removeListItem(
   shoppingListId: string,
   itemId: string,
   userId: string,
+  at: Date = new Date(),
 ): Promise<void> {
   const item = await findMemberListItem(repositories, shoppingListId, itemId, userId);
   const result = await repositories.listItemRepository.delete({ id: itemId, shoppingListId });
   if (!result.affected) throw new Error('Item not found.');
   if (item.status === 'to_buy') {
-    await recordItemEvent(repositories, item, 'removed', item.source, userId);
+    await recordItemEvent(repositories, item, 'removed', item.source, userId, at);
   }
 }
