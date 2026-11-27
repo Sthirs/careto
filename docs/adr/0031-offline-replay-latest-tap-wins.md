@@ -1,6 +1,6 @@
 # ADR-0031: Offline replay — the latest tap wins, a change overtaken by a later one is refused
 
-- **Status:** 🟡 proposed
+- **Status:** 🟢 accepted
 - **Date:** 2026-11-27
 - **Deciders:** Sthirs
 
